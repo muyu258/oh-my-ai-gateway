@@ -10,7 +10,7 @@ const providerSchema = z.object({
   models: z.array(z.string().min(1)),
   protocols: z.array(z.enum(ProtocolType)),
   baseUrl: z.url().optional(),
-  apiKey: z.string().min(1),
+  providerToken: z.string().min(1),
   enabled: z.boolean(),
 });
 

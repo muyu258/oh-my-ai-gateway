@@ -1,11 +1,10 @@
+import { invariant } from "es-toolkit";
 import { ProtocolType } from "../../protocol.types";
 import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
 import { z } from "zod";
 
-const requestSchema = z.object({
-  model: z.string().min(1),
-});
+const requestSchema = z.object({ model: z.string().min(1) });
 
 const defaultEndpoint = "/v1/responses";
 const defaultBaseUrl = "https://api.openai.com";
@@ -16,11 +15,16 @@ const requestAdapter: RequestAdapter = {
     const payload: unknown = await request.clone().json();
     return requestSchema.parse(payload).model;
   },
+  getGatewayToken: ({ headers }: Request): string => {
+    const authorization = headers.get("authorization");
+    invariant(authorization, new Error("Bearer gateway token is required"));
+    return authorization.replace(/^Bearer\s+/i, "");
+  },
   requestTransformer: ({ request, options }) => {
-    const { apiKey, baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
+    const { providerToken, baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
     const upstreamRequest = new Request(appendEndpoint(baseUrl, endpoint), request);
     return withProviderHeaders(upstreamRequest, {
-      authorization: `Bearer ${apiKey}`,
+      authorization: `Bearer ${providerToken}`,
     });
   },
 };

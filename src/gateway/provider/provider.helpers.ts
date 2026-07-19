@@ -9,8 +9,8 @@ export const forEnabled = filter(({ enabled }: Provider) => enabled);
 export const forProtocol = (type: ProtocolType) =>
   filter(({ protocols }: Provider) => protocols.includes(type));
 
-export const forModel = (modelId: string) =>
-  filter(({ models: modelIds }: Provider) => modelIds.includes(modelId));
+export const forModel = (model: string) =>
+  filter(({ models: modelIds }: Provider) => modelIds.includes(model));
 
 /** Selection strategy placeholder: use the first eligible provider for now. */
 export const selectProvider = (providers: Provider[]): Provider => {

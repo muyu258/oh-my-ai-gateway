@@ -3,40 +3,41 @@ import { forEnabled, forModel, forProtocol, selectProvider } from "../provider/p
 import { providers } from "../provider/provider.config";
 import { ProtocolAdapter } from "../protocol/adapter/adapter.types";
 import { gatewayErrorResponse } from "../errors/gateway-error";
+import { authByToken } from "../auth/gateway-auth";
 
 export const handleGatewayRequest = async ({
   request,
-  adapter,
+  adapter: {
+    requestAdapter: { getGatewayToken, getModel, requestTransformer },
+    responseAdapter: { responseTransformer },
+    protocolType,
+  },
 }: {
   request: Request;
   adapter: ProtocolAdapter;
 }): Promise<Response> => {
   const correlationId = crypto.randomUUID();
-  const {
-    requestAdapter: { getModel, requestTransformer },
-    responseAdapter: { responseTransformer },
-    protocolType,
-  } = adapter;
 
   try {
-    const model = await getModel(request);
-    const { apiKey, baseUrl } = pipe(
+    pipe(request, getGatewayToken, authByToken);
+    const { providerToken, baseUrl } = pipe(
       providers,
       forEnabled,
       forProtocol(protocolType),
-      forModel(model),
+      forModel(await getModel(request)),
       selectProvider,
     );
 
     const upstreamRequest = requestTransformer({
       request,
       options: {
-        apiKey,
         baseUrl,
+        providerToken,
       },
     });
 
     const upstreamResponse = await fetch(upstreamRequest);
+
     return responseTransformer(upstreamResponse);
   } catch (error) {
     return gatewayErrorResponse(error, correlationId);

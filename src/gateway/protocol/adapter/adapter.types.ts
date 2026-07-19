@@ -5,13 +5,14 @@ export type RequestAdapterParams = {
   options: {
     baseUrl?: string;
     endpoint?: string;
-    apiKey: string;
+    providerToken: string;
     model?: string;
   };
 };
 
 export interface RequestAdapter {
   getModel: (request: Request) => Promise<string>;
+  getGatewayToken: (request: Request) => string;
   requestTransformer: (params: RequestAdapterParams) => Request;
 }
 
