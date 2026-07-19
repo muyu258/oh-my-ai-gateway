@@ -1,5 +1,5 @@
 import { ProtocolType } from "../../protocol.types";
-import { appendEndpoint } from "../adapter.helpers";
+import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
 import { z } from "zod";
 
@@ -17,8 +17,11 @@ const requestAdapter: RequestAdapter = {
     return requestSchema.parse(payload).model;
   },
   requestTransformer: ({ request, options }) => {
-    const { baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
-    return new Request(appendEndpoint(baseUrl, endpoint), request);
+    const { apiKey, baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
+    const upstreamRequest = new Request(appendEndpoint(baseUrl, endpoint), request);
+    return withProviderHeaders(upstreamRequest, {
+      "x-api-key": apiKey,
+    });
   },
 };
 
