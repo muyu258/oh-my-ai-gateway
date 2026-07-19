@@ -5,7 +5,7 @@ export type Provider = {
   name: string;
   models: readonly string[];
   protocols: readonly ProtocolType[];
-  baseUrl: string;
+  baseUrl?: string;
   apiKey: string;
   enabled: boolean;
 };

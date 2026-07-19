@@ -7,10 +7,8 @@ import {
   forProtocol,
   selectProvider,
 } from "../provider/provider.helpers";
+import { providers } from "../provider/provider.config";
 import { ProtocolAdapter } from "../protocol/adapter/adapter.types";
-import { Provider } from "../provider/provider.types";
-
-const providers: Provider[] = [];
 
 export const handleGatewayRequest = async ({
   request,
@@ -20,7 +18,7 @@ export const handleGatewayRequest = async ({
   adapter: ProtocolAdapter;
 }): Promise<Response> => {
   const model = await requestAdapter.getModel(request);
-  const provider = pipe(
+  const _provider = pipe(
     providers,
     forEnabled,
     forProtocol(protocolType),

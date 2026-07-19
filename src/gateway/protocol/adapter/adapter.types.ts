@@ -3,8 +3,9 @@ import { ProtocolType } from "../protocol.types";
 export type RequestAdapterParams = {
   request: Request;
   options: {
+    baseUrl?: string;
+    endpoint?: string;
     apiKey: string;
-    baseUrl: string;
     model?: string;
   };
 };
@@ -19,6 +20,8 @@ export interface ResponseAdapter {
 }
 
 export interface ProtocolAdapter {
+  defaultEndpoint: string;
+  defaultBaseUrl: string;
   protocolType: ProtocolType;
   requestAdapter: RequestAdapter;
   responseAdapter: ResponseAdapter;

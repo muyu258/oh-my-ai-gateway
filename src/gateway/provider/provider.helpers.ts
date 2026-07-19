@@ -2,7 +2,7 @@ import { ProtocolType } from "../protocol/protocol.types";
 import { filter } from "es-toolkit/fp";
 import { Provider } from "./provider.types";
 
-export const forEnabled = filter(({ enabled = true }: Provider) => enabled);
+export const forEnabled = filter(({ enabled }: Provider) => enabled);
 
 export const forProtocol = (type: ProtocolType) =>
   filter(({ protocols }: Provider) => protocols.includes(type));
