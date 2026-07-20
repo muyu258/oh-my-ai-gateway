@@ -1,13 +1,6 @@
 {
   "format_on_save": "on",
-  "language_servers": [
-    "!stylelint-lsp",
-    "!biome",
-    "!eslint",
-    "!dprint",
-    "!some-sass-lsp",
-    "..."
-  ],
+  "language_servers": ["!stylelint-lsp", "!biome", "!eslint", "!dprint", "!some-sass-lsp", "..."],
   "lsp": {
     "css-language-server": {
       "settings": {

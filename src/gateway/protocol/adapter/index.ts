@@ -9,7 +9,7 @@ export { openaiResponseAdapter } from "./impl/openai-response";
 export { anthropicAdapter } from "./impl/anthropic";
 
 export const adapters: Record<ProtocolType, ProtocolAdapter> = {
-  [ProtocolType.OpenAiCompatible]: openaiCompatibleAdapter,
+  [ProtocolType.OpenaiCompatible]: openaiCompatibleAdapter,
   [ProtocolType.OpenaiResponse]: openaiResponseAdapter,
   [ProtocolType.Anthropic]: anthropicAdapter,
 };

@@ -58,6 +58,11 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+Browser pages use the configured `GATEWAY_TOKEN` to sign in at `/auth`. A successful login stores
+the token in an HTTP-only cookie and opens `/dashboard`. The API reference is available inside the
+dashboard at `/dashboard/api-reference`. Non-AI application APIs use the `/api` prefix, while AI
+protocol endpoints remain under `/v1`.
+
 The current application entry point is `src/app/page.tsx`. The root layout and global styles are in
 `src/app/layout.tsx` and `src/app/globals.css`.
 
@@ -67,6 +72,7 @@ The current application entry point is `src/app/page.tsx`. The root layout and g
 bun run dev          # Start the development server
 bun run build        # Create a production build
 bun run start        # Start the production server
+bun run test         # Run the test suite
 bun run lint         # Run Oxlint with TypeScript type-aware rules
 bun run format       # Format supported project files with Oxfmt
 bun run format:check # Check formatting without changing files

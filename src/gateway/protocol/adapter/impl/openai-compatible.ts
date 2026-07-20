@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const defaultEndpoint = "/v1/chat/completions";
 const defaultBaseUrl = "https://api.openai.com";
-const protocolType = ProtocolType.OpenAiCompatible;
+const protocolType = ProtocolType.OpenaiCompatible;
 
 const requestSchema = z.object({ model: z.string().min(1) });
 

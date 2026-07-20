@@ -16,6 +16,9 @@ const defaultStatusByCode: Record<GatewayErrorCode, number> = {
 
 const normalizeGatewayError = (error: unknown): GatewayError => {
   if (error instanceof GatewayError) return error;
+  if (error instanceof Error) {
+    return new GatewayError(GatewayErrorCode.InternalError, error.message);
+  }
   return new GatewayError(GatewayErrorCode.InternalError, "Internal gateway error");
 };
 

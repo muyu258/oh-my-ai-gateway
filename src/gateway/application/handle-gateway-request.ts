@@ -3,7 +3,7 @@ import { forEnabled, forModel, forProtocol, selectProvider } from "../provider/p
 import { providers } from "../provider/provider.config";
 import { ProtocolAdapter } from "../protocol/adapter/adapter.types";
 import { gatewayErrorResponse } from "../errors/gateway-error";
-import { authByToken } from "../auth/gateway-auth";
+import { authByToken } from "#/auth/auth";
 
 export const handleGatewayRequest = async ({
   request,

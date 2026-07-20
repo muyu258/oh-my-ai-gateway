@@ -1,5 +1,5 @@
 export enum ProtocolType {
-  OpenAiCompatible = "openAiCompatible",
+  OpenaiCompatible = "openaiCompatible",
   OpenaiResponse = "openaiResponse",
   Anthropic = "anthropic",
 }
