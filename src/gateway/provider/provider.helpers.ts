@@ -6,8 +6,10 @@ import { invariant } from "es-toolkit";
 
 export const forEnabled = filter(({ enabled }: Provider) => enabled);
 
-export const forProtocol = (type: ProtocolType) =>
-  filter(({ protocols }: Provider) => protocols.includes(type));
+export const forProtocol = (type: ProtocolType) => forProtocols([type]);
+
+export const forProtocols = (types: ProtocolType[]) =>
+  filter(({ protocols }: Provider) => types.some((t) => protocols.includes(t)));
 
 export const forModel = (model: string) =>
   filter(({ models: modelIds }: Provider) => modelIds.includes(model));
@@ -22,3 +24,7 @@ export const selectProvider = (providers: Provider[]): Provider => {
 
   return provider;
 };
+
+export const collectModels = (providers: Provider[]): string[] => [
+  ...new Set(providers.flatMap(({ models }) => models)),
+];

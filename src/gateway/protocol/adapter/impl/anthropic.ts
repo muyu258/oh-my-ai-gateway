@@ -1,4 +1,5 @@
 import { invariant } from "es-toolkit";
+import { collectModels } from "#/gateway/provider/provider.helpers";
 import { ProtocolType } from "../../protocol.types";
 import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
@@ -30,6 +31,22 @@ const requestAdapter: RequestAdapter = {
 };
 
 const responseAdapter: ResponseAdapter = {
+  createModelsResponse: (providers) => {
+    const models = collectModels(providers);
+    const createdAt = new Date().toISOString();
+
+    return Response.json({
+      data: models.map((id) => ({
+        type: "model",
+        id,
+        display_name: id,
+        created_at: createdAt,
+      })),
+      has_more: false,
+      first_id: models.at(0) ?? null,
+      last_id: models.at(-1) ?? null,
+    });
+  },
   responseTransformer: (response) => response,
 };
 

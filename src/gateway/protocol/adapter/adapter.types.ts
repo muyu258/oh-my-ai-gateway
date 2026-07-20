@@ -1,3 +1,4 @@
+import { Provider } from "#/gateway/provider/provider.types";
 import { ProtocolType } from "../protocol.types";
 
 export type RequestAdapterParams = {
@@ -17,6 +18,7 @@ export interface RequestAdapter {
 }
 
 export interface ResponseAdapter {
+  createModelsResponse: (providers: Provider[]) => Response;
   responseTransformer: (response: Response) => Response;
 }
 
