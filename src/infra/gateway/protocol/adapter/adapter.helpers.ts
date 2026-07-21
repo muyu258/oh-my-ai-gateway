@@ -1,5 +1,5 @@
-import { collectModels } from "#/gateway/provider/provider.helpers";
-import type { Provider } from "#/gateway/provider/provider.types";
+import { collectModels } from "#/infra/gateway/provider/provider.helpers";
+import type { Provider } from "#/infra/gateway/provider/provider.types";
 
 export const appendEndpoint = (baseUrl: string, endpoint: string): string =>
   `${baseUrl.replace(/\/+$/, "")}/${endpoint.replace(/^\/+/, "")}`;

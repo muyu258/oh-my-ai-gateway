@@ -1,5 +1,5 @@
-import { collectModels } from "#/gateway/provider/provider.helpers";
-import { GatewayError, GatewayErrorCode } from "#/gateway/errors/gateway-error";
+import { collectModels } from "#/infra/gateway/provider/provider.helpers";
+import { GatewayError, GatewayErrorCode } from "#/infra/gateway/errors/gateway-error";
 import { ProtocolAdapter } from "../../adapter.types";
 
 type ModelsResponse = ProtocolAdapter["responseAdapter"]["createModelsResponse"];

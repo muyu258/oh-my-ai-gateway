@@ -7,14 +7,18 @@
     "build": "next build",
     "start": "next start",
     "test": "bun test",
-    "lint": "oxlint --type-aware .",
+    "lint": "oxlint .",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",
-    "check": "bun run lint && bun run format:check && bun run typecheck"
+    "check": "bun run lint && bun run format:check && bun run typecheck",
+    "db:migrate": "bun src/infra/database/drizzle/migrate.ts",
+    "db:generate": "drizzle-kit generate --config src/infra/database/drizzle/config.ts",
+    "db:studio": "drizzle-kit studio --config src/infra/database/drizzle/config.ts"
   },
   "dependencies": {
     "@scalar/api-reference-react": "0.9.58",
+    "drizzle-orm": "0.45.2",
     "es-toolkit": "1.49.0",
     "lucide-react": "1.25.0",
     "next": "16.2.10",
@@ -27,6 +31,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "better-sqlite3": "13.0.1",
+    "drizzle-kit": "0.31.10",
     "oxfmt": "0.59.0",
     "oxlint": "1.74.0",
     "oxlint-tsgolint": "0.25.0",
@@ -34,12 +40,11 @@
     "typescript": "^5"
   },
   "packageManager": "bun@1.4.0-canary.1",
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
   "trustedDependencies": [
+    "better-sqlite3",
+    "esbuild",
     "sharp",
-    "unrs-resolver"
+    "unrs-resolver",
+    "vue-demi"
   ]
 }

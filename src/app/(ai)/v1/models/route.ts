@@ -1,10 +1,10 @@
 import { authByToken } from "#/auth/auth";
-import { normalizeGatewayError } from "#/gateway/errors/gateway-error";
-import { adapters, openaiCompatibleAdapter } from "#/gateway/protocol/adapter";
-import { analyzeProtocolByHeaders } from "#/gateway/protocol/protocol.helpers";
-import { ProtocolType } from "#/gateway/protocol/protocol.types";
-import { providers } from "#/gateway/provider/provider.config";
-import { forEnabled, forProtocols } from "#/gateway/provider/provider.helpers";
+import { normalizeGatewayError } from "#/infra/gateway/errors/gateway-error";
+import { adapters, openaiCompatibleAdapter } from "#/infra/gateway/protocol/adapter";
+import { analyzeProtocolByHeaders } from "#/infra/gateway/protocol/protocol.helpers";
+import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+import { providers } from "#/infra/gateway/provider/provider.config";
+import { forEnabled, forProtocols } from "#/infra/gateway/provider/provider.helpers";
 import { pipe } from "es-toolkit/fp";
 
 export const GET = async (request: Request): Promise<Response> => {

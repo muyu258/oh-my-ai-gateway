@@ -4,5 +4,12 @@
   "options": {
     "typeAware": true
   },
-  "ignorePatterns": ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts"]
+  "ignorePatterns": [
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "src/infra/database/drizzle/migrations/**",
+    "next-env.d.ts"
+  ]
 }

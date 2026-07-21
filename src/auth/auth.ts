@@ -1,7 +1,7 @@
 "server-only";
 
 import { invariant } from "es-toolkit";
-import { GatewayError, GatewayErrorCode } from "#/gateway/errors/gateway-error";
+import { GatewayError, GatewayErrorCode } from "#/infra/gateway/errors/gateway-error";
 
 export const AUTH_COOKIE_NAME = "gateway_token";
 

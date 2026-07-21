@@ -1,5 +1,5 @@
-import { GatewayError } from "#/gateway/errors/gateway-error";
-import { Provider } from "#/gateway/provider/provider.types";
+import { GatewayError } from "#/infra/gateway/errors/gateway-error";
+import { Provider } from "#/infra/gateway/provider/provider.types";
 import { ProtocolType } from "../protocol.types";
 
 export type RequestAdapterParams = {

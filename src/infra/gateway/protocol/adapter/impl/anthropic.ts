@@ -1,6 +1,6 @@
 import { invariant } from "es-toolkit";
-import { collectModels } from "#/gateway/provider/provider.helpers";
-import { GatewayErrorCode } from "#/gateway/errors/gateway-error";
+import { collectModels } from "#/infra/gateway/provider/provider.helpers";
+import { GatewayErrorCode } from "#/infra/gateway/errors/gateway-error";
 import { ProtocolType } from "../../protocol.types";
 import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
