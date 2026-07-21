@@ -14,7 +14,7 @@ const defaultStatusByCode: Record<GatewayErrorCode, number> = {
   [GatewayErrorCode.InternalError]: 500,
 };
 
-const normalizeGatewayError = (error: unknown): GatewayError => {
+export const normalizeGatewayError = (error: unknown): GatewayError => {
   if (error instanceof GatewayError) return error;
   if (error instanceof Error) {
     return new GatewayError(GatewayErrorCode.InternalError, error.message);
@@ -34,23 +34,3 @@ export class GatewayError extends Error {
     this.status = defaultStatusByCode[code];
   }
 }
-
-export const gatewayErrorResponse = (error: unknown, correlationId: string): Response => {
-  const { code, message, status } = normalizeGatewayError(error);
-
-  return Response.json(
-    {
-      error: {
-        code,
-        message,
-        type: "gateway_error",
-      },
-    },
-    {
-      status,
-      headers: {
-        "x-gateway-correlation-id": correlationId,
-      },
-    },
-  );
-};

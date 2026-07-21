@@ -3,7 +3,7 @@ import { ProtocolType } from "../../protocol.types";
 import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
 import { z } from "zod";
-import { collectModels } from "#/gateway/provider/provider.helpers";
+import { createErrorResponse, createModelsResponse } from "./shared/openai.helpers";
 
 const defaultEndpoint = "/v1/chat/completions";
 const defaultBaseUrl = "https://api.openai.com";
@@ -31,19 +31,8 @@ const requestAdapter: RequestAdapter = {
 };
 
 const responseAdapter: ResponseAdapter = {
-  createModelsResponse: (providers) => {
-    const created = Math.floor(Date.now() / 1000);
-
-    return Response.json({
-      object: "list",
-      data: collectModels(providers).map((id) => ({
-        id,
-        object: "model",
-        created,
-        owned_by: "gateway",
-      })),
-    });
-  },
+  createModelsResponse,
+  createErrorResponse,
   responseTransformer: (response) => response,
 };
 

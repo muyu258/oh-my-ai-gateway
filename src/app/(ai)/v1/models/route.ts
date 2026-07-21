@@ -1,6 +1,6 @@
 import { authByToken } from "#/auth/auth";
-import { gatewayErrorResponse } from "#/gateway/errors/gateway-error";
-import { adapters } from "#/gateway/protocol/adapter";
+import { normalizeGatewayError } from "#/gateway/errors/gateway-error";
+import { adapters, openaiCompatibleAdapter } from "#/gateway/protocol/adapter";
 import { analyzeProtocolByHeaders } from "#/gateway/protocol/protocol.helpers";
 import { ProtocolType } from "#/gateway/protocol/protocol.types";
 import { providers } from "#/gateway/provider/provider.config";
@@ -8,7 +8,7 @@ import { forEnabled, forProtocols } from "#/gateway/provider/provider.helpers";
 import { pipe } from "es-toolkit/fp";
 
 export const GET = async (request: Request): Promise<Response> => {
-  const correlationId = crypto.randomUUID();
+  let createErrorResponse = openaiCompatibleAdapter.responseAdapter.createErrorResponse;
 
   try {
     const protocol = analyzeProtocolByHeaders(request);
@@ -16,6 +16,7 @@ export const GET = async (request: Request): Promise<Response> => {
       requestAdapter: { getGatewayToken },
       responseAdapter: { createModelsResponse },
     } = adapters[protocol];
+    createErrorResponse = adapters[protocol].responseAdapter.createErrorResponse;
     authByToken(getGatewayToken(request));
 
     return pipe(
@@ -29,6 +30,6 @@ export const GET = async (request: Request): Promise<Response> => {
       createModelsResponse,
     );
   } catch (error) {
-    return gatewayErrorResponse(error, correlationId);
+    return pipe(error, normalizeGatewayError, createErrorResponse);
   }
 };

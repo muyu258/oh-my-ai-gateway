@@ -1,5 +1,6 @@
 import { invariant } from "es-toolkit";
 import { collectModels } from "#/gateway/provider/provider.helpers";
+import { GatewayErrorCode } from "#/gateway/errors/gateway-error";
 import { ProtocolType } from "../../protocol.types";
 import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter, RequestAdapter, ResponseAdapter } from "../adapter.types";
@@ -10,6 +11,14 @@ const defaultBaseUrl = "https://api.anthropic.com";
 const protocolType = ProtocolType.Anthropic;
 
 const requestSchema = z.object({ model: z.string().min(1) });
+
+const errorTypeByCode: Record<GatewayErrorCode, string> = {
+  [GatewayErrorCode.InvalidRequest]: "invalid_request_error",
+  [GatewayErrorCode.RouteNotFound]: "not_found_error",
+  [GatewayErrorCode.UpstreamNetworkError]: "api_error",
+  [GatewayErrorCode.UpstreamAborted]: "api_error",
+  [GatewayErrorCode.InternalError]: "api_error",
+};
 
 const requestAdapter: RequestAdapter = {
   getModel: async (request: Request): Promise<string> => {
@@ -46,6 +55,19 @@ const responseAdapter: ResponseAdapter = {
       first_id: models.at(0) ?? null,
       last_id: models.at(-1) ?? null,
     });
+  },
+  createErrorResponse: (error) => {
+    const { code, message, status } = error;
+    return Response.json(
+      {
+        type: "error",
+        error: {
+          type: errorTypeByCode[code],
+          message,
+        },
+      },
+      { status },
+    );
   },
   responseTransformer: (response) => response,
 };

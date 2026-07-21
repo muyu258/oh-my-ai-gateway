@@ -2,22 +2,20 @@ import { pipe } from "es-toolkit/fp";
 import { forEnabled, forModel, forProtocol, selectProvider } from "../provider/provider.helpers";
 import { providers } from "../provider/provider.config";
 import { ProtocolAdapter } from "../protocol/adapter/adapter.types";
-import { gatewayErrorResponse } from "../errors/gateway-error";
+import { normalizeGatewayError } from "../errors/gateway-error";
 import { authByToken } from "#/auth/auth";
 
 export const handleGatewayRequest = async ({
   request,
   adapter: {
     requestAdapter: { getGatewayToken, getModel, requestTransformer },
-    responseAdapter: { responseTransformer },
+    responseAdapter: { responseTransformer, createErrorResponse },
     protocolType,
   },
 }: {
   request: Request;
   adapter: ProtocolAdapter;
 }): Promise<Response> => {
-  const correlationId = crypto.randomUUID();
-
   try {
     pipe(request, getGatewayToken, authByToken);
     const { providerToken, baseUrl } = pipe(
@@ -40,6 +38,6 @@ export const handleGatewayRequest = async ({
 
     return responseTransformer(upstreamResponse);
   } catch (error) {
-    return gatewayErrorResponse(error, correlationId);
+    return pipe(error, normalizeGatewayError, createErrorResponse);
   }
 };

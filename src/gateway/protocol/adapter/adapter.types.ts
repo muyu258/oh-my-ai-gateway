@@ -1,3 +1,4 @@
+import { GatewayError } from "#/gateway/errors/gateway-error";
 import { Provider } from "#/gateway/provider/provider.types";
 import { ProtocolType } from "../protocol.types";
 
@@ -19,6 +20,7 @@ export interface RequestAdapter {
 
 export interface ResponseAdapter {
   createModelsResponse: (providers: Provider[]) => Response;
+  createErrorResponse: (error: GatewayError) => Response;
   responseTransformer: (response: Response) => Response;
 }
 
