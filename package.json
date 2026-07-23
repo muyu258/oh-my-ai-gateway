@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@scalar/api-reference-react": "0.9.58",
+    "better-sqlite3": "13.0.1",
     "drizzle-orm": "0.45.2",
     "es-toolkit": "1.49.0",
     "lucide-react": "1.25.0",
@@ -31,7 +32,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "better-sqlite3": "13.0.1",
     "drizzle-kit": "0.31.10",
     "oxfmt": "0.59.0",
     "oxlint": "1.74.0",

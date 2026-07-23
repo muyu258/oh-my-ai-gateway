@@ -6,14 +6,19 @@ export const requestRecord = sqliteTable("request_record", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   channelId: text("channel_id"),
-  source: text("source"),
+  model: text("model"),
+  client: text("client"),
+  protocolType: text("protocol_type"),
   status: text("status"),
   isStream: integer("is_stream", { mode: "boolean" }).notNull().default(false),
-  inputTokens: integer("input_tokens"),
-  outputTokens: integer("output_tokens"),
-  cachedInputTokens: integer("cached_input_tokens"),
-  cost: text("cost"),
-  costDetails: text("cost_details", { mode: "json" }).$type<Record<string, unknown>>(),
+  error: text("error", { mode: "json" }).$type<unknown>(),
+  usage: text("usage", { mode: "json" }).$type<{
+    inputTokens?: number;
+    outputTokens?: number;
+    cachedInputTokens?: number;
+    cost?: string;
+    costDetails?: Record<string, unknown>;
+  }>(),
   startAt: integer("start_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

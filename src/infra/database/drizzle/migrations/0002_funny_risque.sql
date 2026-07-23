@@ -1,0 +1,1 @@
+ALTER TABLE `request_record` ADD `client` text;
