@@ -2,10 +2,9 @@ import { ArrowLeft, ArrowRight, Clock3, Database } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import {
-  PageSizeSelect,
-  UsageTableFilter,
-} from "#/app/dashboard/usage/_components/usage-table-filter";
+import { PageSizeSelect } from "#/app/dashboard/usage/_components/usage-table-filter";
+import { isProtocolType, ProtocolIcon } from "#/components/icons/protocol";
+import { TableFilter } from "#/components/table-filter";
 import {
   getRequestRecords,
   type RequestRecordPeriodFilter,
@@ -54,12 +53,6 @@ const formatDuration = (milliseconds: number | null): string => {
   if (milliseconds === null) return "—";
   if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
   return `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
-};
-
-const protocolLabels: Record<string, string> = {
-  anthropic: "Anthropic",
-  openaiCompatible: "Chat Completions",
-  openaiResponse: "Responses",
 };
 
 const getStatus = (status: string | null) => {
@@ -132,12 +125,12 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
       <div className="flex h-full min-h-0 w-full flex-col">
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
           <div className="min-h-0 flex-1 overflow-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-center">
+            <table className="w-full min-w-[980px] border-collapse text-center">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#e5e7eb] bg-[#fcfcfd] text-xs font-medium uppercase tracking-wide text-[#667085]">
-                  <th className="px-5 py-3">Channel</th>
+                  <th className="px-5 py-3">Name</th>
                   <th className="px-5 py-3">
-                    <UsageTableFilter
+                    <TableFilter
                       label="Time"
                       parameter="period"
                       defaultValue="7d"
@@ -150,27 +143,22 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                     />
                   </th>
                   <th className="px-5 py-3">
-                    <UsageTableFilter
-                      label="Model"
-                      parameter="model"
-                      placeholder="Enter model name"
-                    />
+                    <div className="flex items-center justify-center gap-3">
+                      <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
+                      <TableFilter
+                        label="Protocol"
+                        parameter="protocolType"
+                        options={[
+                          { label: "All protocols", value: "" },
+                          { label: "Anthropic", value: "anthropic" },
+                          { label: "Chat Completions", value: "openaiCompatible" },
+                          { label: "Responses", value: "openaiResponse" },
+                        ]}
+                      />
+                    </div>
                   </th>
                   <th className="px-5 py-3">
-                    <UsageTableFilter
-                      label="Protocol"
-                      parameter="protocolType"
-                      options={[
-                        { label: "All protocols", value: "" },
-                        { label: "Anthropic", value: "anthropic" },
-                        { label: "Chat Completions", value: "openaiCompatible" },
-                        { label: "Responses", value: "openaiResponse" },
-                      ]}
-                    />
-                  </th>
-                  <th className="px-5 py-3">Stream</th>
-                  <th className="px-5 py-3">
-                    <UsageTableFilter
+                    <TableFilter
                       label="Client"
                       parameter="client"
                       placeholder="Enter client name"
@@ -179,7 +167,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                   <th className="px-5 py-3">Tokens</th>
                   <th className="px-5 py-3">Duration</th>
                   <th className="px-5 py-3">
-                    <UsageTableFilter
+                    <TableFilter
                       label="Status"
                       parameter="status"
                       defaultValue="all"
@@ -205,9 +193,9 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                         <td className="px-5 py-4">
                           <p
                             className="mx-auto max-w-48 truncate text-[#475467]"
-                            title={record.channelId ?? undefined}
+                            title={record.name ?? undefined}
                           >
-                            {record.channelId ?? "-"}
+                            {record.name ?? "-"}
                           </p>
                         </td>
                         <td className="whitespace-nowrap px-5 py-4">
@@ -217,22 +205,22 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                           </p>
                         </td>
                         <td className="px-5 py-4">
-                          <p
-                            className="mx-auto max-w-52 truncate font-medium text-[#101828]"
-                            title={record.model ?? undefined}
-                          >
-                            {record.model ?? "-"}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="whitespace-nowrap text-[#344054]">
-                            {record.protocolType
-                              ? (protocolLabels[record.protocolType] ?? record.protocolType)
-                              : "—"}
-                          </p>
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4 text-[#475467]">
-                          {record.isStream ? "Yes" : "No"}
+                          <div className="mx-auto flex max-w-80 items-center justify-center gap-2">
+                            {isProtocolType(record.protocolType) ? (
+                              <ProtocolIcon protocol={record.protocolType} />
+                            ) : (
+                              <span className="text-[#98a2b3]">—</span>
+                            )}
+                            <p
+                              className="min-w-0 truncate font-medium text-[#101828]"
+                              title={record.model ?? undefined}
+                            >
+                              {record.model ?? "-"}
+                            </p>
+                            <span className="shrink-0 rounded-md bg-[#f2f4f7] px-2 py-1 text-xs font-medium text-[#667085]">
+                              {record.isStream ? "Stream" : "Non-stream"}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           <p
@@ -280,7 +268,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={7}>
                       <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
                         <div className="flex size-12 items-center justify-center rounded-full bg-[#f1f5f9] text-[#475569]">
                           <Database className="size-5" strokeWidth={1.8} aria-hidden="true" />

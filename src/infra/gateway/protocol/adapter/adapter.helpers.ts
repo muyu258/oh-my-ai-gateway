@@ -39,6 +39,7 @@ const hopByHopHeaders = [
   "upgrade",
   "host",
   "content-length",
+  "x-provider-name",
 ];
 
 /**

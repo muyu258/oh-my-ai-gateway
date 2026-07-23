@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/auth/auth";
+import { FloatingInput } from "#/components/floating-input";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { cookies } from "next/headers";
@@ -41,7 +42,8 @@ export default async function AuthPage({
         </header>
 
         <form action="/api/auth/login" method="post" className="mt-10">
-          <input
+          <FloatingInput
+            label="Gateway token"
             id="token"
             name="token"
             type="password"
@@ -50,7 +52,8 @@ export default async function AuthPage({
             required
             placeholder="Enter your gateway token"
             aria-describedby={error ? "login-error" : undefined}
-            className="mt-2 h-14 w-full rounded-lg border border-[#d1d5db] bg-white px-4 font-mono text-base text-[#111827] outline-none transition placeholder:text-[#9ca3af] focus:border-[#0284c7] focus:ring-2 focus:ring-[#38bdf8]/25"
+            containerClassName="mt-2"
+            inputClassName="h-14 font-mono text-base"
           />
 
           {error ? (

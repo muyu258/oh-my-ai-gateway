@@ -14,6 +14,9 @@ export const forProtocols = (types: ProtocolType[]) =>
 export const forModel = (model: string) =>
   filter(({ models: modelIds }: Provider) => modelIds.includes(model));
 
+export const forName = (name: string) =>
+  filter(({ name: providerName }: Provider) => providerName === name);
+
 /** Selection strategy placeholder: use the first eligible provider for now. */
 export const selectProvider = (providers: Provider[]): Provider => {
   const provider = providers[0];

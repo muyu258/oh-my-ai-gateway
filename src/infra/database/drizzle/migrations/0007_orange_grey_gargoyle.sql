@@ -1,0 +1,1 @@
+ALTER TABLE `request_record` RENAME COLUMN "channel_id" TO "name";

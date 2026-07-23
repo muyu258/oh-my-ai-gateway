@@ -1,7 +1,13 @@
 import { pipe } from "es-toolkit/fp";
 import { after } from "next/server";
-import { forEnabled, forModel, forProtocol, selectProvider } from "../provider/provider.helpers";
-import { providers } from "../provider/provider.config";
+import {
+  forEnabled,
+  forModel,
+  forName,
+  forProtocol,
+  selectProvider,
+} from "../provider/provider.helpers";
+import { getProviders } from "#/infra/database/provider.repository";
 import { collectResponse } from "../protocol/adapter/adapter.helpers";
 import type {
   CollectedResponse,
@@ -73,21 +79,32 @@ export const handleGatewayRequest = async ({
   try {
     pipe(request, getGatewayToken, authByToken);
     const model = await getModel(request);
-    const {
-      id: channelId,
-      baseUrl,
-      providerToken,
-    } = pipe(providers, forEnabled, forProtocol(protocolType), forModel(model), selectProvider);
+    const providers = await getProviders();
+    const requestedProviderName = request.headers.get("x-provider-name");
+    const matchingProviders = pipe(
+      providers,
+      forEnabled,
+      forProtocol(protocolType),
+      forModel(model),
+    );
+    const eligibleProviders = requestedProviderName
+      ? pipe(matchingProviders, forName(requestedProviderName))
+      : matchingProviders;
+    const { name, baseUrl, providerToken, protocolEndpoints } = pipe(
+      eligibleProviders,
+      selectProvider,
+    );
     requestRecord = {
       ...requestRecord,
       model,
       protocolType,
-      channelId,
+      name,
     };
     const upstreamRequest = requestTransformer({
       request,
       options: {
         baseUrl,
+        endpoint: protocolEndpoints?.[protocolType],
         providerToken,
       },
     });
