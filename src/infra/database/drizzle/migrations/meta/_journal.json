@@ -64,6 +64,13 @@
       "when": 1784802227999,
       "tag": "0008_loose_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1784877388287,
+      "tag": "0009_spicy_amphibian",
+      "breakpoints": true
     }
   ]
 }

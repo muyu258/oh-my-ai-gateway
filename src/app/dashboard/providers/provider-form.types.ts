@@ -3,6 +3,7 @@ import type { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
 export type ProviderFormInput = {
   name: string;
   models: string[];
+  testModel: string;
   protocols: ProtocolType[];
   protocolEndpoints: Partial<Record<ProtocolType, string>>;
   websiteUrl: string;

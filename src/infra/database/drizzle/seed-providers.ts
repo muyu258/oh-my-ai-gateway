@@ -21,11 +21,15 @@ if (!legacyProviders.length) {
 await db
   .insert(provider)
   .values(
-    legacyProviders.map((legacyProvider) => ({
-      ...legacyProvider,
-      models: [...legacyProvider.models],
-      protocols: [...legacyProvider.protocols],
-    })),
+    legacyProviders.map((legacyProvider) => {
+      const models = [...legacyProvider.models].sort((left, right) => left.localeCompare(right));
+      return {
+        ...legacyProvider,
+        models,
+        testModel: legacyProvider.testModel ?? models[0],
+        protocols: [...legacyProvider.protocols],
+      };
+    }),
   )
   .onConflictDoNothing({ target: provider.name });
 

@@ -1,14 +1,34 @@
-import { ArrowLeft, ArrowRight, Clock3, Database } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Box,
+  Clock3,
+  Database,
+  Waves,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { PageSizeSelect } from "#/app/dashboard/usage/_components/usage-table-filter";
+import { UsageRecordRow } from "#/app/dashboard/usage/_components/usage-record-row";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableEmptyState,
+  DataTableHead,
+  DataTableHeader,
+  DataTableHeaderRow,
+} from "#/components/data-table";
+import { DataTablePanel } from "#/components/data-table-panel";
 import { isProtocolType, ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
 import {
   getRequestRecords,
   type RequestRecordPeriodFilter,
   type RequestRecordStatusFilter,
+  type RequestRecordStreamFilter,
 } from "#/infra/database/request-record.repository";
 import type { RequestRecord } from "#/infra/database/drizzle/schema";
 
@@ -18,10 +38,10 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_PAGE_SIZE = 20;
-const pageSizes = new Set([10, 20, 50, 100]);
+const PAGE_SIZE = 20;
 const statusFilters = new Set<RequestRecordStatusFilter>(["all", "success", "error"]);
 const periodFilters = new Set<RequestRecordPeriodFilter>(["24h", "7d", "30d", "all"]);
+const streamFilters = new Set<RequestRecordStreamFilter>(["all", "stream", "nonStream"]);
 const protocolFilters = new Set(["anthropic", "openaiCompatible", "openaiResponse"]);
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -65,8 +85,12 @@ const getStatus = (status: string | null) => {
   };
 };
 
-const getTotalTokens = (record: RequestRecord): number =>
-  (record.usage?.inputTokens ?? 0) + (record.usage?.outputTokens ?? 0);
+const getCachedInputPercentage = (record: RequestRecord): number | null => {
+  const inputTokens = record.usage?.inputTokens ?? 0;
+  const cachedInputTokens = record.usage?.cachedInputTokens ?? 0;
+  if (!inputTokens || !cachedInputTokens) return null;
+  return Math.min(100, Math.round((cachedInputTokens / inputTokens) * 100));
+};
 
 const getDuration = (record: RequestRecord): number | null =>
   record.endAt ? record.endAt.getTime() - record.startAt.getTime() : null;
@@ -78,6 +102,18 @@ const pageHref = (params: URLSearchParams, page: number): string => {
   const query = nextParams.toString();
   return query ? `/dashboard/usage?${query}` : "/dashboard/usage";
 };
+
+const UsageTableColumns = () => (
+  <colgroup>
+    <col className="w-[15%]" />
+    <col className="w-[12%]" />
+    <col className="w-[29%]" />
+    <col className="w-[12%]" />
+    <col className="w-[12%]" />
+    <col className="w-[12%]" />
+    <col className="w-[8%]" />
+  </colgroup>
+);
 
 export default async function UsagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolvedSearchParams = await searchParams;
@@ -92,260 +128,300 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
   const requestedPeriod = firstValue(resolvedSearchParams.period) as
     | RequestRecordPeriodFilter
     | undefined;
+  const requestedStream = firstValue(resolvedSearchParams.stream) as
+    | RequestRecordStreamFilter
+    | undefined;
   const status = requestedStatus && statusFilters.has(requestedStatus) ? requestedStatus : "all";
   const period = requestedPeriod && periodFilters.has(requestedPeriod) ? requestedPeriod : "7d";
+  const stream = requestedStream && streamFilters.has(requestedStream) ? requestedStream : "all";
   const requestedPage = Number.parseInt(firstValue(resolvedSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const requestedPageSize = Number.parseInt(
-    firstValue(resolvedSearchParams.pageSize) ?? String(DEFAULT_PAGE_SIZE),
-    10,
-  );
-  const pageSize = pageSizes.has(requestedPageSize) ? requestedPageSize : DEFAULT_PAGE_SIZE;
 
   const { records, total } = await getRequestRecords({
-    filters: { model, client, protocolType, status, period },
+    filters: { model, client, protocolType, stream, status, period },
     page,
-    pageSize,
+    pageSize: PAGE_SIZE,
   });
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const activeFilters = Boolean(
-    model || client || protocolType || status !== "all" || period !== "7d",
+    model || client || protocolType || stream !== "all" || status !== "all" || period !== "7d",
   );
   const queryParams = new URLSearchParams();
   if (model) queryParams.set("model", model);
   if (client) queryParams.set("client", client);
   if (protocolType) queryParams.set("protocolType", protocolType);
+  if (stream !== "all") queryParams.set("stream", stream);
   if (status !== "all") queryParams.set("status", status);
   if (period !== "7d") queryParams.set("period", period);
-  if (pageSize !== DEFAULT_PAGE_SIZE) queryParams.set("pageSize", String(pageSize));
+
+  const tableFooter = (
+    <>
+      <p className="text-sm text-[#667085]">
+        <span className="font-medium tabular-nums text-[#344054]">{formatNumber(total)}</span>{" "}
+        records
+      </p>
+      <nav className="flex items-center gap-3" aria-label="Usage pagination">
+        <p className="min-w-20 text-center text-sm tabular-nums text-[#86868b]">
+          Page <span className="font-medium text-[#1d1d1f]">{currentPage}</span> of {totalPages}
+        </p>
+        <div className="flex items-center gap-1">
+          {currentPage > 1 ? (
+            <Link
+              href={pageHref(queryParams, currentPage - 1)}
+              aria-label="Previous page"
+              title="Previous page"
+              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0071e3]"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              className="flex size-8 cursor-not-allowed items-center justify-center rounded-md text-[#c7c7cc]"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+            </span>
+          )}
+          {currentPage < totalPages ? (
+            <Link
+              href={pageHref(queryParams, currentPage + 1)}
+              aria-label="Next page"
+              title="Next page"
+              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0071e3]"
+            >
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              className="flex size-8 cursor-not-allowed items-center justify-center rounded-md text-[#c7c7cc]"
+            >
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </span>
+          )}
+        </div>
+      </nav>
+    </>
+  );
 
   return (
-    <div className="h-full min-h-0 w-full overflow-hidden bg-white">
-      <div className="flex h-full min-h-0 w-full flex-col">
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-          <div className="min-h-0 flex-1 overflow-auto">
-            <table className="w-full min-w-[980px] border-collapse text-center">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b border-[#e5e7eb] bg-[#fcfcfd] text-xs font-medium uppercase tracking-wide text-[#667085]">
-                  <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">
-                    <TableFilter
-                      label="Time"
-                      parameter="period"
-                      defaultValue="7d"
-                      options={[
-                        { label: "Last 24 hours", value: "24h" },
-                        { label: "Last 7 days", value: "7d" },
-                        { label: "Last 30 days", value: "30d" },
-                        { label: "All time", value: "all" },
-                      ]}
-                    />
-                  </th>
-                  <th className="px-5 py-3">
-                    <div className="flex items-center justify-center gap-3">
-                      <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
-                      <TableFilter
-                        label="Protocol"
-                        parameter="protocolType"
-                        options={[
-                          { label: "All protocols", value: "" },
-                          { label: "Anthropic", value: "anthropic" },
-                          { label: "Chat Completions", value: "openaiCompatible" },
-                          { label: "Responses", value: "openaiResponse" },
-                        ]}
-                      />
+    <DataTablePanel
+      minWidth={1040}
+      footer={tableFooter}
+      header={
+        <DataTable className="table-fixed text-center">
+          <UsageTableColumns />
+          <DataTableHeader>
+            <DataTableHeaderRow className="tracking-wide">
+              <DataTableHead>Name</DataTableHead>
+              <DataTableHead>
+                <TableFilter
+                  label="Time"
+                  parameter="period"
+                  defaultValue="7d"
+                  options={[
+                    { label: "Last 24 hours", value: "24h" },
+                    { label: "Last 7 days", value: "7d" },
+                    { label: "Last 30 days", value: "30d" },
+                    { label: "All time", value: "all" },
+                  ]}
+                />
+              </DataTableHead>
+              <DataTableHead>
+                <div className="flex items-center justify-center gap-3">
+                  <TableFilter
+                    label="Protocol"
+                    parameter="protocolType"
+                    options={[
+                      { label: "All protocols", value: "" },
+                      { label: "Anthropic", value: "anthropic" },
+                      { label: "Chat Completions", value: "openaiCompatible" },
+                      { label: "Responses", value: "openaiResponse" },
+                    ]}
+                  />
+                  <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
+                  <TableFilter
+                    label="Stream"
+                    parameter="stream"
+                    defaultValue="all"
+                    options={[
+                      { label: "All request types", value: "all" },
+                      { label: "Streaming", value: "stream" },
+                      { label: "Non-streaming", value: "nonStream" },
+                    ]}
+                  />
+                </div>
+              </DataTableHead>
+              <DataTableHead>
+                <TableFilter label="Client" parameter="client" placeholder="Enter client name" />
+              </DataTableHead>
+              <DataTableHead>Tokens</DataTableHead>
+              <DataTableHead>Duration</DataTableHead>
+              <DataTableHead pinned="right">
+                <TableFilter
+                  label="Status"
+                  parameter="status"
+                  defaultValue="all"
+                  align="right"
+                  options={[
+                    { label: "All statuses", value: "all" },
+                    { label: "Successful", value: "success" },
+                    { label: "Errors", value: "error" },
+                  ]}
+                />
+              </DataTableHead>
+            </DataTableHeaderRow>
+          </DataTableHeader>
+        </DataTable>
+      }
+    >
+      <DataTable className="table-fixed text-center">
+        <UsageTableColumns />
+        <DataTableBody>
+          {records.length ? (
+            records.map((record) => {
+              const timestamp = formatDate(record.startAt);
+              const statusInfo = getStatus(record.status);
+              const cachedInputPercentage = getCachedInputPercentage(record);
+
+              return (
+                <UsageRecordRow
+                  key={record.id}
+                  recordId={record.id}
+                  recordJson={JSON.stringify(record, null, 2)}
+                >
+                  <DataTableCell>
+                    <p
+                      className="mx-auto max-w-48 truncate text-[#475467]"
+                      title={record.name ?? undefined}
+                    >
+                      {record.name ?? "-"}
+                    </p>
+                  </DataTableCell>
+                  <DataTableCell className="whitespace-nowrap">
+                    <p className="font-medium text-[#344054]">{timestamp.date}</p>
+                    <p className="mt-0.5 font-mono text-xs text-[#98a2b3]">{timestamp.time}</p>
+                  </DataTableCell>
+                  <DataTableCell>
+                    <div className="mx-auto flex max-w-80 items-center justify-center gap-1.5">
+                      {isProtocolType(record.protocolType) ? (
+                        <ProtocolIcon protocol={record.protocolType} size={16} />
+                      ) : (
+                        <span className="text-[#98a2b3]">—</span>
+                      )}
+                      <p
+                        className="min-w-0 truncate font-medium text-[#101828]"
+                        title={record.model ?? undefined}
+                      >
+                        {record.model ?? "-"}
+                      </p>
+                      <span
+                        className="shrink-0 text-[#667085]"
+                        title={record.isStream ? "Streaming" : "Non-streaming"}
+                      >
+                        {record.isStream ? (
+                          <Waves className="size-4" aria-hidden="true" />
+                        ) : (
+                          <Box className="size-4" aria-hidden="true" />
+                        )}
+                        <span className="sr-only">
+                          {record.isStream ? "Streaming" : "Non-streaming"}
+                        </span>
+                      </span>
                     </div>
-                  </th>
-                  <th className="px-5 py-3">
-                    <TableFilter
-                      label="Client"
-                      parameter="client"
-                      placeholder="Enter client name"
-                    />
-                  </th>
-                  <th className="px-5 py-3">Tokens</th>
-                  <th className="px-5 py-3">Duration</th>
-                  <th className="px-5 py-3">
-                    <TableFilter
-                      label="Status"
-                      parameter="status"
-                      defaultValue="all"
-                      align="right"
-                      options={[
-                        { label: "All statuses", value: "all" },
-                        { label: "Successful", value: "success" },
-                        { label: "Errors", value: "error" },
-                      ]}
-                    />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#eef0f3]">
-                {records.length ? (
-                  records.map((record) => {
-                    const timestamp = formatDate(record.startAt);
-                    const statusInfo = getStatus(record.status);
-                    const tokens = getTotalTokens(record);
-
-                    return (
-                      <tr key={record.id} className="text-sm transition hover:bg-[#fcfcfd]">
-                        <td className="px-5 py-4">
-                          <p
-                            className="mx-auto max-w-48 truncate text-[#475467]"
-                            title={record.name ?? undefined}
-                          >
-                            {record.name ?? "-"}
-                          </p>
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4">
-                          <p className="font-medium text-[#344054]">{timestamp.date}</p>
-                          <p className="mt-0.5 font-mono text-xs text-[#98a2b3]">
-                            {timestamp.time}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="mx-auto flex max-w-80 items-center justify-center gap-2">
-                            {isProtocolType(record.protocolType) ? (
-                              <ProtocolIcon protocol={record.protocolType} />
-                            ) : (
-                              <span className="text-[#98a2b3]">—</span>
-                            )}
-                            <p
-                              className="min-w-0 truncate font-medium text-[#101828]"
-                              title={record.model ?? undefined}
-                            >
-                              {record.model ?? "-"}
-                            </p>
-                            <span className="shrink-0 rounded-md bg-[#f2f4f7] px-2 py-1 text-xs font-medium text-[#667085]">
-                              {record.isStream ? "Stream" : "Non-stream"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <p
-                            className="mx-auto max-w-40 truncate text-[#475467]"
-                            title={record.client ?? undefined}
-                          >
-                            {record.client ?? "—"}
-                          </p>
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4">
-                          <p className="font-medium tabular-nums text-[#344054]">
-                            {tokens ? formatNumber(tokens) : "—"}
-                          </p>
-                          {record.usage ? (
-                            <p className="mt-1 text-xs tabular-nums text-[#98a2b3]">
-                              {formatCompactNumber(record.usage.inputTokens ?? 0)} in ·{" "}
-                              {formatCompactNumber(record.usage.outputTokens ?? 0)} out
-                            </p>
-                          ) : null}
-                        </td>
-                        <td className="whitespace-nowrap px-5 py-4">
-                          <div className="flex items-center justify-center gap-1.5 font-medium tabular-nums text-[#344054]">
-                            <Clock3 className="size-3.5 text-[#98a2b3]" aria-hidden="true" />
-                            {formatDuration(getDuration(record))}
-                          </div>
-                          {record.timeToFirstByteMs !== null ? (
-                            <p className="mt-1 text-xs tabular-nums text-[#98a2b3]">
-                              TTFB {formatDuration(record.timeToFirstByteMs)}
-                            </p>
-                          ) : null}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={
-                              statusInfo.successful
-                                ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
-                                : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
-                            }
-                          >
-                            {statusInfo.label}
+                  </DataTableCell>
+                  <DataTableCell>
+                    <p
+                      className="mx-auto max-w-40 truncate text-[#475467]"
+                      title={record.client ?? undefined}
+                    >
+                      {record.client ?? "—"}
+                    </p>
+                  </DataTableCell>
+                  <DataTableCell className="whitespace-nowrap">
+                    {record.usage ? (
+                      <div className="mx-auto flex w-fit flex-col items-center gap-1 text-xs tabular-nums">
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-[#667085]" title="Output tokens">
+                            <ArrowDown className="size-3.5" aria-hidden="true" />
+                            <span className="sr-only">Output tokens</span>
                           </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7}>
-                      <div className="flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center">
-                        <div className="flex size-12 items-center justify-center rounded-full bg-[#f1f5f9] text-[#475569]">
-                          <Database className="size-5" strokeWidth={1.8} aria-hidden="true" />
+                          <span className="font-medium text-[#344054]">
+                            {formatCompactNumber(record.usage.outputTokens ?? 0)}
+                          </span>
                         </div>
-                        <h3 className="mt-4 text-sm font-semibold text-[#101828]">
-                          No usage records found
-                        </h3>
-                        <p className="mt-1 max-w-sm text-sm text-[#667085]">
-                          {activeFilters
-                            ? "Try adjusting your filters to see more requests."
-                            : "Requests will appear here after they pass through the gateway."}
-                        </p>
-                        {activeFilters ? (
-                          <Link
-                            href="/dashboard/usage"
-                            className="mt-4 text-sm font-medium text-[#0369a1] hover:text-[#075985]"
-                          >
-                            Clear all filters
-                          </Link>
-                        ) : null}
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-[#667085]" title="Input tokens">
+                            <ArrowUp className="size-3.5" aria-hidden="true" />
+                            <span className="sr-only">Input tokens</span>
+                          </span>
+                          <span className="font-medium text-[#344054]">
+                            {formatCompactNumber(record.usage.inputTokens ?? 0)}
+                            {cachedInputPercentage !== null ? (
+                              <span
+                                className="ml-1 text-[#248a3d]"
+                                title={`${cachedInputPercentage}% of input tokens served from cache`}
+                              >
+                                ({cachedInputPercentage}%)
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-[#e5e7eb] px-4 py-3 sm:px-5">
-            <p className="text-sm text-[#667085]">
-              <span className="font-medium tabular-nums text-[#344054]">{formatNumber(total)}</span>{" "}
-              records
-            </p>
-            <div className="flex flex-wrap items-center justify-end gap-4">
-              <PageSizeSelect value={pageSize} />
-              {total > pageSize ? (
-                <>
-                  <p className="text-sm text-[#667085]">
-                    Page <span className="font-medium text-[#344054]">{currentPage}</span> of{" "}
-                    {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    {currentPage > 1 ? (
-                      <Link
-                        href={pageHref(queryParams, currentPage - 1)}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#d0d5dd] px-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fafc]"
-                      >
-                        <ArrowLeft className="size-4" aria-hidden="true" />
-                        Previous
-                      </Link>
                     ) : (
-                      <span className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-[#e5e7eb] px-3 text-sm font-medium text-[#98a2b3]">
-                        <ArrowLeft className="size-4" aria-hidden="true" />
-                        Previous
-                      </span>
+                      <span className="text-[#98a2b3]">—</span>
                     )}
-                    {currentPage < totalPages ? (
-                      <Link
-                        href={pageHref(queryParams, currentPage + 1)}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#d0d5dd] px-3 text-sm font-medium text-[#344054] transition hover:bg-[#f8fafc]"
-                      >
-                        Next
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </Link>
-                    ) : (
-                      <span className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg border border-[#e5e7eb] px-3 text-sm font-medium text-[#98a2b3]">
-                        Next
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </span>
-                    )}
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
+                  </DataTableCell>
+                  <DataTableCell className="whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1.5 font-medium tabular-nums text-[#344054]">
+                      <Clock3 className="size-3.5 text-[#98a2b3]" aria-hidden="true" />
+                      {formatDuration(getDuration(record))}
+                    </div>
+                    {record.timeToFirstByteMs !== null ? (
+                      <p className="mt-1 text-xs tabular-nums text-[#98a2b3]">
+                        TTFB {formatDuration(record.timeToFirstByteMs)}
+                      </p>
+                    ) : null}
+                  </DataTableCell>
+                  <DataTableCell pinned="right">
+                    <span
+                      className={
+                        statusInfo.successful
+                          ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
+                          : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
+                      }
+                    >
+                      {statusInfo.label}
+                    </span>
+                  </DataTableCell>
+                </UsageRecordRow>
+              );
+            })
+          ) : (
+            <DataTableEmptyState
+              colSpan={7}
+              icon={<Database className="size-5" strokeWidth={1.8} aria-hidden="true" />}
+              title="No usage records found"
+              description={
+                activeFilters
+                  ? "Try adjusting your filters to see more requests."
+                  : "Requests will appear here after they pass through the gateway."
+              }
+              action={
+                activeFilters ? (
+                  <Link
+                    href="/dashboard/usage"
+                    className="mt-4 text-sm font-medium text-[#0369a1] hover:text-[#075985]"
+                  >
+                    Clear all filters
+                  </Link>
+                ) : undefined
+              }
+            />
+          )}
+        </DataTableBody>
+      </DataTable>
+    </DataTablePanel>
   );
 }

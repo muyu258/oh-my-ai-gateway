@@ -18,28 +18,23 @@ import { normalizeGatewayError } from "../errors/gateway-error";
 import { authByToken } from "#/auth/auth";
 import { saveRequestRecord } from "#/infra/database/request-record.repository";
 import type { NewRequestRecord } from "#/infra/database/drizzle/schema";
+import { getResponseRecordFields } from "./response-record.helpers";
 
 const recordGatewayResponse = async (
   record: NewRequestRecord,
   collectedResponse: CollectedResponse,
   extractResponseMetadata: ResponseAdapter["extractResponseMetadata"],
 ): Promise<void> => {
-  let error: unknown;
-  let metadata = {};
-
   const { forwardedResponse, completion, timeToFirstByteMs, isStream } = collectedResponse;
   const [responseCompletion, recordedTimeToFirstByteMs] = await Promise.all([
     completion,
     timeToFirstByteMs,
   ]);
-
-  if (responseCompletion.type === "completed") {
-    metadata = extractResponseMetadata(responseCompletion.payload);
-  } else if (responseCompletion.type === "failed") {
-    error = responseCompletion.error;
-  } else {
-    error = responseCompletion.reason;
-  }
+  const { metadata, error } = getResponseRecordFields(
+    forwardedResponse.status,
+    responseCompletion,
+    extractResponseMetadata,
+  );
 
   const completedRequestRecord: NewRequestRecord = {
     ...record,

@@ -1,4 +1,4 @@
-import { and, count, desc, gte, like, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, like, sql, type SQL } from "drizzle-orm";
 import { db } from "./drizzle/client";
 import { requestRecord, type NewRequestRecord } from "./drizzle/schema";
 
@@ -8,11 +8,13 @@ export const saveRequestRecord = async (record: NewRequestRecord): Promise<void>
 
 export type RequestRecordStatusFilter = "all" | "success" | "error";
 export type RequestRecordPeriodFilter = "24h" | "7d" | "30d" | "all";
+export type RequestRecordStreamFilter = "all" | "stream" | "nonStream";
 
 export type RequestRecordFilters = {
   model?: string;
   client?: string;
   protocolType?: string;
+  stream: RequestRecordStreamFilter;
   status: RequestRecordStatusFilter;
   period: RequestRecordPeriodFilter;
 };
@@ -32,6 +34,9 @@ const createRequestRecordWhere = (filters: RequestRecordFilters): SQL | undefine
   if (client) conditions.push(like(requestRecord.client, `%${client}%`));
   if (filters.protocolType)
     conditions.push(sql`${requestRecord.protocolType} = ${filters.protocolType}`);
+  if (filters.stream !== "all") {
+    conditions.push(eq(requestRecord.isStream, filters.stream === "stream"));
+  }
 
   if (filters.status === "success") {
     conditions.push(sql`cast(${requestRecord.status} as integer) between 200 and 399`);

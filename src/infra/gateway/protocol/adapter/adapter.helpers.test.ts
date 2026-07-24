@@ -47,6 +47,21 @@ describe("collectResponse", () => {
     expect(await response.text()).toBe("not json");
   });
 
+  test("collects the raw response text for a non-JSON error response", async () => {
+    const response = new Response("upstream unavailable", {
+      status: 502,
+      headers: { "content-type": "text/plain" },
+    });
+
+    const collected = collectResponse(response, createEventCollector);
+
+    expect(await collected.completion).toEqual({
+      type: "completed",
+      payload: "upstream unavailable",
+    });
+    expect(await response.text()).toBe("upstream unavailable");
+  });
+
   test("reports collection failure for an empty non-stream response", async () => {
     const response = new Response(null, { status: 204 });
 

@@ -8,10 +8,15 @@ import { provider, requestRecord } from "./drizzle/schema";
 
 const protocolsSchema = z.array(z.enum(ProtocolType));
 const protocolEndpointsSchema = z.partialRecord(z.enum(ProtocolType), z.string());
+const sortModels = (models: string[]): string[] =>
+  [...models].sort((left, right) => left.localeCompare(right));
+const getTestModel = (models: string[], testModel: string | null): string | undefined =>
+  testModel && models.includes(testModel) ? testModel : models[0];
 
 export type ProviderSummary = {
   name: string;
   models: string[];
+  testModel: string | null;
   protocols: ProtocolType[];
   protocolEndpoints: Partial<Record<ProtocolType, string>>;
   websiteUrl: string | null;
@@ -19,6 +24,17 @@ export type ProviderSummary = {
   enabled: boolean;
   averageResponseTimeMs: number | null;
   updatedAt: Date;
+};
+
+export type ProviderResponseTimePeriod = "30m" | "1h" | "6h" | "24h" | "7d" | "30d" | "all";
+
+const responseTimePeriodInMilliseconds: Partial<Record<ProviderResponseTimePeriod, number>> = {
+  "30m": 30 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+  "6h": 6 * 60 * 60 * 1000,
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
 };
 
 export type CreateProviderInput = Omit<Provider, "models" | "protocols"> & {
@@ -33,24 +49,32 @@ export type UpdateProviderInput = Omit<CreateProviderInput, "providerToken"> & {
 export const getProviders = async (): Promise<Provider[]> => {
   const records = await db.select().from(provider).orderBy(asc(provider.name));
 
-  return records.map((record) => ({
-    name: record.name,
-    models: record.models,
-    protocols: protocolsSchema.parse(record.protocols),
-    protocolEndpoints: protocolEndpointsSchema.parse(record.protocolEndpoints),
-    websiteUrl: record.websiteUrl ?? undefined,
-    baseUrl: record.baseUrl ?? undefined,
-    providerToken: record.providerToken,
-    enabled: record.enabled,
-  }));
+  return records.map((record) => {
+    const models = sortModels(record.models);
+    return {
+      name: record.name,
+      models,
+      testModel: getTestModel(models, record.testModel),
+      protocols: protocolsSchema.parse(record.protocols),
+      protocolEndpoints: protocolEndpointsSchema.parse(record.protocolEndpoints),
+      websiteUrl: record.websiteUrl ?? undefined,
+      baseUrl: record.baseUrl ?? undefined,
+      providerToken: record.providerToken,
+      enabled: record.enabled,
+    };
+  });
 };
 
-export const getProviderSummaries = async (): Promise<ProviderSummary[]> => {
+export const getProviderSummaries = async (
+  responseTimePeriod: ProviderResponseTimePeriod = "30m",
+): Promise<ProviderSummary[]> => {
+  const responseTimePeriodMs = responseTimePeriodInMilliseconds[responseTimePeriod];
   const [records, responseTimeAverages] = await Promise.all([
     db
       .select({
         name: provider.name,
         models: provider.models,
+        testModel: provider.testModel,
         protocols: provider.protocols,
         protocolEndpoints: provider.protocolEndpoints,
         websiteUrl: provider.websiteUrl,
@@ -68,7 +92,9 @@ export const getProviderSummaries = async (): Promise<ProviderSummary[]> => {
       .from(requestRecord)
       .where(
         and(
-          gte(requestRecord.startAt, new Date(Date.now() - 30 * 60 * 1000)),
+          responseTimePeriodMs
+            ? gte(requestRecord.startAt, new Date(Date.now() - responseTimePeriodMs))
+            : undefined,
           isNotNull(requestRecord.name),
           isNotNull(requestRecord.timeToFirstByteMs),
         ),
@@ -79,21 +105,28 @@ export const getProviderSummaries = async (): Promise<ProviderSummary[]> => {
     responseTimeAverages.map(({ name, averageResponseTimeMs }) => [name, averageResponseTimeMs]),
   );
 
-  return records.map((record) => ({
-    ...record,
-    protocols: protocolsSchema.parse(record.protocols),
-    protocolEndpoints: protocolEndpointsSchema.parse(record.protocolEndpoints),
-    averageResponseTimeMs: averageByProvider.get(record.name) ?? null,
-  }));
+  return records.map((record) => {
+    const models = sortModels(record.models);
+    return {
+      ...record,
+      models,
+      testModel: getTestModel(models, record.testModel) ?? null,
+      protocols: protocolsSchema.parse(record.protocols),
+      protocolEndpoints: protocolEndpointsSchema.parse(record.protocolEndpoints),
+      averageResponseTimeMs: averageByProvider.get(record.name) ?? null,
+    };
+  });
 };
 
 export const getProvider = async (name: string): Promise<Provider | undefined> => {
   const record = await db.query.provider.findFirst({ where: eq(provider.name, name) });
   if (!record) return undefined;
 
+  const models = sortModels(record.models);
   return {
     name: record.name,
-    models: record.models,
+    models,
+    testModel: getTestModel(models, record.testModel),
     protocols: protocolsSchema.parse(record.protocols),
     protocolEndpoints: protocolEndpointsSchema.parse(record.protocolEndpoints),
     websiteUrl: record.websiteUrl ?? undefined,

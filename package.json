@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@scalar/api-reference-react": "0.9.58",
+    "@uiw/react-json-view": "2.0.0-alpha.43",
     "better-sqlite3": "13.0.1",
     "drizzle-orm": "0.45.2",
     "es-toolkit": "1.49.0",

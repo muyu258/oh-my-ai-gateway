@@ -9,6 +9,7 @@ const originalFetch = globalThis.fetch;
 const provider: Provider = {
   name: "Test provider",
   models: ["first-model", "second-model"],
+  testModel: "second-model",
   protocols: [ProtocolType.OpenaiCompatible, ProtocolType.OpenaiResponse, ProtocolType.Anthropic],
   protocolEndpoints: { [ProtocolType.OpenaiCompatible]: "/custom/chat" },
   baseUrl: "https://provider.example/api",
@@ -64,7 +65,7 @@ describe("discoverProviderModels", () => {
 });
 
 describe("testProviderProtocol", () => {
-  test("uses the first model through the gateway chat route with a non-stream request", async () => {
+  test("uses the configured test model through the gateway chat route", async () => {
     let upstreamRequest: Request | undefined;
     globalThis.fetch = ((input, init) => {
       upstreamRequest = new Request(input, init);
@@ -74,12 +75,13 @@ describe("testProviderProtocol", () => {
     const result = await testProviderProtocol(provider, ProtocolType.OpenaiCompatible, gateway);
     const payload: unknown = await upstreamRequest?.json();
 
-    expect(result.model).toBe("first-model");
+    expect(result.model).toBe("second-model");
     expect(upstreamRequest?.url).toBe("http://gateway.example/v1/chat/completions");
     expect(upstreamRequest?.headers.get("authorization")).toBe("Bearer gateway-secret");
     expect(upstreamRequest?.headers.get("x-provider-name")).toBe("Test provider");
+    expect(upstreamRequest?.headers.get("user-agent")).toBe("gateway/test");
     expect(payload).toEqual({
-      model: "first-model",
+      model: "second-model",
       messages: [{ role: "user", content: "Reply with OK." }],
       stream: false,
     });
@@ -96,7 +98,7 @@ describe("testProviderProtocol", () => {
 
     expect(upstreamRequest?.url).toBe("http://gateway.example/v1/responses");
     expect(await upstreamRequest?.json()).toEqual({
-      model: "first-model",
+      model: "second-model",
       input: "Reply with OK.",
       stream: false,
     });
@@ -115,10 +117,23 @@ describe("testProviderProtocol", () => {
     expect(upstreamRequest?.headers.get("x-api-key")).toBe("gateway-secret");
     expect(upstreamRequest?.headers.get("x-provider-name")).toBe("Test provider");
     expect(await upstreamRequest?.json()).toEqual({
-      model: "first-model",
+      model: "second-model",
       max_tokens: 1,
       messages: [{ role: "user", content: "Reply with OK." }],
       stream: false,
     });
+  });
+
+  test("falls back to the first model when no test model is configured", async () => {
+    globalThis.fetch = ((_input, _init) =>
+      Promise.resolve(Response.json({ choices: [] }))) as typeof fetch;
+
+    const result = await testProviderProtocol(
+      { ...provider, testModel: undefined },
+      ProtocolType.OpenaiCompatible,
+      gateway,
+    );
+
+    expect(result.model).toBe("first-model");
   });
 });

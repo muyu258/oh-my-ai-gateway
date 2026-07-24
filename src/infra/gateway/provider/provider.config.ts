@@ -7,6 +7,7 @@ import type { Provider } from "./provider.types";
 const providerSchema = z.object({
   name: z.string().min(1),
   models: z.array(z.string().min(1)),
+  testModel: z.string().min(1).optional(),
   protocols: z.array(z.enum(ProtocolType)),
   websiteUrl: z.url().optional(),
   baseUrl: z.url().optional(),

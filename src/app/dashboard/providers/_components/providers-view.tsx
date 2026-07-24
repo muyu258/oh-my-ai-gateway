@@ -18,10 +18,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useMemo, useState, useTransition } from "react";
 
 import { ProtocolIcon } from "#/components/icons/protocol";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableEmptyState,
+  DataTableHead,
+  DataTableHeader,
+  DataTableHeaderRow,
+  DataTableRow,
+} from "#/components/data-table";
+import { DataTablePanel } from "#/components/data-table-panel";
 import { FloatingInput } from "#/components/floating-input";
+import { FormSectionCard } from "#/components/form-section-card";
+import { Modal } from "#/components/modal";
 import { TableFilter } from "#/components/table-filter";
 import { Toast, type ToastMessage } from "#/components/toast";
-import type { ProviderSummary } from "#/infra/database/provider.repository";
+import type {
+  ProviderResponseTimePeriod,
+  ProviderSummary,
+} from "#/infra/database/provider.repository";
 import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
 import {
   createProviderAction,
@@ -54,6 +70,7 @@ const protocolOptions = [
 const emptyForm: ProviderFormInput = {
   name: "",
   models: [],
+  testModel: "",
   protocols: [ProtocolType.OpenaiCompatible],
   protocolEndpoints: {},
   websiteUrl: "",
@@ -84,6 +101,27 @@ const responseTimeBadge = (milliseconds: number | null): { label: string; classN
   }
   return { label: `${Math.round(milliseconds)} ms`, className: "bg-[#fef3f2] text-[#b42318]" };
 };
+
+const responseTimePeriodLabels: Record<ProviderResponseTimePeriod, string> = {
+  "30m": "30m",
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+  all: "all time",
+};
+
+const ProviderTableColumns = () => (
+  <colgroup>
+    <col className="w-[21%]" />
+    <col className="w-[23%]" />
+    <col className="w-[16%]" />
+    <col className="w-[14%]" />
+    <col className="w-[10%]" />
+    <col className="w-[16%]" />
+  </colgroup>
+);
 
 function ProviderDialog({
   provider,
@@ -116,6 +154,7 @@ function ProviderDialog({
       ? {
           name: provider.name,
           models: provider.models,
+          testModel: provider.testModel ?? provider.models[0] ?? "",
           protocols: provider.protocols,
           protocolEndpoints: provider.protocolEndpoints,
           websiteUrl: provider.websiteUrl ?? "",
@@ -126,14 +165,21 @@ function ProviderDialog({
       : emptyForm,
   );
 
-  const formInput = (nextModels = models): ProviderFormInput => ({
-    ...form,
-    models: nextModels,
-  });
+  const formInput = (nextModels = models): ProviderFormInput => {
+    const sortedModels = [...nextModels].sort((left, right) => left.localeCompare(right));
+    return {
+      ...form,
+      models: sortedModels,
+      testModel: sortedModels.includes(form.testModel) ? form.testModel : (sortedModels[0] ?? ""),
+    };
+  };
 
   const addModel = () => {
     const model = modelDraft.trim();
-    if (model && !models.includes(model)) setModels((current) => [...current, model]);
+    if (model && !models.includes(model)) {
+      setModels((current) => [...current, model].sort((left, right) => left.localeCompare(right)));
+      if (!form.testModel) setForm((current) => ({ ...current, testModel: model }));
+    }
     setModelDraft("");
   };
 
@@ -182,7 +228,9 @@ function ProviderDialog({
 
   const addDiscoveredModels = () => {
     if (!modelDiff || !provider) return;
-    const mergedModels = [...new Set([...models, ...modelDiff.selected])];
+    const mergedModels = [...new Set([...models, ...modelDiff.selected])].sort((left, right) =>
+      left.localeCompare(right),
+    );
     setError("");
 
     startTransition(async () => {
@@ -193,6 +241,9 @@ function ProviderDialog({
       }
       setPersistedName(form.name.trim());
       setModels(mergedModels);
+      if (!form.testModel && mergedModels[0]) {
+        setForm((current) => ({ ...current, testModel: mergedModels[0] ?? "" }));
+      }
       setModelDiff(null);
       router.refresh();
     });
@@ -217,111 +268,139 @@ function ProviderDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[1px]"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="provider-dialog-title"
-      onMouseDown={(event) => {
-        if (event.currentTarget === event.target) onClose();
-      }}
-    >
-      <div className="flex h-[min(46rem,calc(100svh-2rem))] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[#e5e7eb] bg-white shadow-[0_24px_64px_rgba(15,23,42,0.22)]">
-        <div className="relative z-10 flex shrink-0 items-start justify-between bg-white px-5 pb-3 pt-5 sm:px-6">
-          <div>
-            <h2 id="provider-dialog-title" className="text-base font-semibold text-[#101828]">
-              {provider ? "Edit provider" : "Add provider"}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            title="Close"
-            className="flex size-9 items-center justify-center rounded-md text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054]"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-
+    <>
+      <Modal
+        title={provider ? "Edit provider" : "Add provider"}
+        onClose={onClose}
+        size="lg"
+        panelClassName="h-[min(46rem,calc(100svh-1.5rem))] sm:h-[min(46rem,calc(100svh-2.5rem))]"
+        bodyClassName="flex overflow-hidden p-0 sm:p-0"
+      >
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto px-5 pb-6 pt-3 sm:grid-cols-2 sm:px-6">
-            <FloatingInput
-              label="Name"
-              required
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-              placeholder="OpenAI"
-              containerClassName="sm:col-span-2"
-            />
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-6 pt-3 sm:px-6">
+            <FormSectionCard title="Provider details">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <FloatingInput
+                  label="Name"
+                  required
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  placeholder="OpenAI"
+                  containerClassName="sm:col-span-2"
+                />
 
-            <FloatingInput
-              label="Website"
-              type="url"
-              value={form.websiteUrl}
-              onChange={(event) => setForm({ ...form, websiteUrl: event.target.value })}
-              placeholder="https://openai.com"
-              containerClassName="sm:col-span-2"
-            />
+                <FloatingInput
+                  label="Website"
+                  type="url"
+                  value={form.websiteUrl}
+                  onChange={(event) => setForm({ ...form, websiteUrl: event.target.value })}
+                  placeholder="https://openai.com"
+                  containerClassName="sm:col-span-2"
+                />
 
-            <FloatingInput
-              label="Base URL"
-              type="url"
-              value={form.baseUrl}
-              onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
-              placeholder="https://api.openai.com"
-              containerClassName="sm:col-span-2"
-            />
+                <FloatingInput
+                  label="Base URL"
+                  type="url"
+                  value={form.baseUrl}
+                  onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
+                  placeholder="https://api.openai.com"
+                  containerClassName="sm:col-span-2"
+                />
 
-            <FloatingInput
-              label="API token"
-              type="password"
-              required={!provider}
-              autoComplete="new-password"
-              value={form.providerToken}
-              onChange={(event) => setForm({ ...form, providerToken: event.target.value })}
-              placeholder={provider ? "Unchanged" : "sk-..."}
-              containerClassName="sm:col-span-2"
-              inputClassName="font-mono"
-            />
+                <FloatingInput
+                  label="API token"
+                  type="password"
+                  required={!provider}
+                  autoComplete="new-password"
+                  value={form.providerToken}
+                  onChange={(event) => setForm({ ...form, providerToken: event.target.value })}
+                  placeholder={provider ? "Unchanged" : "sk-..."}
+                  containerClassName="sm:col-span-2"
+                  inputClassName="font-mono"
+                />
+              </div>
+            </FormSectionCard>
 
-            <div className="sm:col-span-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-[#344054]">Models</span>
+            <FormSectionCard
+              title="Models"
+              action={
                 <button
                   type="button"
                   disabled={!models.length || pending}
-                  onClick={() => setModels([])}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20] disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => {
+                    setModels([]);
+                    setForm((current) => ({ ...current, testModel: "" }));
+                  }}
+                  aria-label="Clear all models"
+                  title="Clear all models"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Trash2 className="size-3.5" aria-hidden="true" />
-                  Clear all
                 </button>
-              </div>
-              <div className="mt-1.5 flex min-h-24 flex-wrap content-start items-start gap-2 py-2.5">
-                {models.map((model) => (
-                  <span
-                    key={model}
-                    className="group inline-flex h-8 max-w-full items-center rounded-md bg-[#f2f4f7] pl-2.5 pr-1 font-mono text-xs text-[#344054]"
-                  >
-                    <span className="max-w-56 truncate" title={model}>
-                      {model}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setModels((current) =>
-                          current.filter((currentModel) => currentModel !== model),
-                        )
-                      }
-                      aria-label={`Remove ${model}`}
-                      title="Remove model"
-                      className="ml-1 flex size-6 shrink-0 items-center justify-center rounded text-[#98a2b3] opacity-100 transition hover:bg-[#e4e7ec] hover:text-[#475467] focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+              }
+            >
+              <div className="flex flex-wrap content-start items-start gap-2 py-1">
+                {models.map((model) => {
+                  const selected = form.testModel === model;
+                  return (
+                    <span
+                      key={model}
+                      className={`group inline-flex h-8 max-w-full items-center rounded-md pr-1 font-mono text-xs shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition ${
+                        selected
+                          ? "bg-[#e0f2fe] text-[#0369a1] ring-1 ring-inset ring-[#7dd3fc]"
+                          : "bg-white text-[#344054]"
+                      }`}
                     >
-                      <X className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        aria-label={`Use ${model} as test model`}
+                        title={selected ? "Selected test model" : "Use as test model"}
+                        onClick={() => setForm((current) => ({ ...current, testModel: model }))}
+                        className="flex h-full min-w-0 items-center rounded-l-md pl-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]"
+                      >
+                        <span className="max-w-56 truncate">{model}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextModels = models.filter(
+                            (currentModel) => currentModel !== model,
+                          );
+                          setModels(nextModels);
+                          if (form.testModel === model) {
+                            setForm((current) => ({
+                              ...current,
+                              testModel: nextModels[0] ?? "",
+                            }));
+                          }
+                        }}
+                        aria-label={`Remove ${model}`}
+                        title="Remove model"
+                        className={`group/remove ml-1 flex size-6 shrink-0 items-center justify-center rounded transition focus:opacity-100 ${
+                          selected
+                            ? "text-[#0284c7] hover:bg-[#bae6fd] hover:text-[#075985]"
+                            : "text-[#98a2b3] opacity-100 hover:bg-[#e4e7ec] hover:text-[#475467] sm:opacity-0 sm:group-hover:opacity-100"
+                        }`}
+                      >
+                        {selected ? (
+                          <>
+                            <PlugZap
+                              className="size-3.5 group-hover:hidden group-focus-visible/remove:hidden"
+                              aria-hidden="true"
+                            />
+                            <X
+                              className="hidden size-3.5 group-hover:block group-focus-visible/remove:block"
+                              aria-hidden="true"
+                            />
+                          </>
+                        ) : (
+                          <X className="size-3.5" aria-hidden="true" />
+                        )}
+                      </button>
+                    </span>
+                  );
+                })}
                 <input
                   value={modelDraft}
                   onChange={(event) => setModelDraft(event.target.value)}
@@ -332,14 +411,13 @@ function ProviderDialog({
                   }}
                   aria-label="Add model"
                   placeholder="Add model"
-                  className="h-8 w-40 max-w-full shrink-0 rounded-md border-0 bg-[#f2f4f7] px-2.5 font-mono text-xs text-[#344054] outline-none transition placeholder:text-[#98a2b3] focus:bg-[#e4e7ec] focus:ring-2 focus:ring-[#7dd3fc]"
+                  className="h-8 w-40 max-w-full shrink-0 rounded-md border-0 bg-white px-2.5 font-mono text-xs text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.08)] outline-none transition placeholder:text-[#98a2b3] focus:ring-2 focus:ring-[#7dd3fc]"
                 />
               </div>
-            </div>
+            </FormSectionCard>
 
-            <fieldset className="sm:col-span-2">
-              <legend className="text-sm font-medium text-[#344054]">Protocols</legend>
-              <div className="mt-2 space-y-1.5">
+            <FormSectionCard title="Protocols">
+              <div className="space-y-1.5">
                 {protocolOptions.map((option) => {
                   const checked = form.protocols.includes(option.value);
                   const expanded = checked && expandedProtocol === option.value;
@@ -490,12 +568,12 @@ function ProviderDialog({
                   );
                 })}
               </div>
-            </fieldset>
+            </FormSectionCard>
 
             {error ? (
               <p
                 role="alert"
-                className="rounded-lg border border-[#fecdca] bg-[#fef3f2] px-3 py-2.5 text-sm text-[#b42318] sm:col-span-2"
+                className="rounded-lg border border-[#fecdca] bg-[#fef3f2] px-3 py-2.5 text-sm text-[#b42318]"
               >
                 {error}
               </p>
@@ -518,7 +596,7 @@ function ProviderDialog({
                 type="button"
                 onClick={onClose}
                 disabled={pending}
-                className="h-9 rounded-md bg-[#dc2626] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#b91c1c] disabled:opacity-50"
+                className="h-9 rounded-md border border-black/10 bg-white px-4 text-sm font-medium text-[#1d1d1f] shadow-sm transition hover:bg-[#f5f5f7] disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -537,7 +615,7 @@ function ProviderDialog({
             </div>
           </div>
         </form>
-      </div>
+      </Modal>
 
       {modelDiff ? (
         <ModelDiffDialog
@@ -549,7 +627,7 @@ function ProviderDialog({
           onConfirm={addDiscoveredModels}
         />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -572,109 +650,83 @@ function ModelDiffDialog({
   const newModels = diff.models.filter((model) => !existing.has(model));
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0f172a]/45 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="model-diff-title"
-    >
-      <div className="flex max-h-[min(42rem,calc(100svh-2rem))] w-full max-w-xl flex-col rounded-lg border border-[#e5e7eb] bg-white shadow-[0_24px_64px_rgba(15,23,42,0.24)]">
-        <div className="flex items-start justify-between border-b border-[#e5e7eb] px-5 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <ProtocolIcon protocol={diff.protocol} decorative />
-            <div className="min-w-0">
-              <h3 id="model-diff-title" className="text-base font-semibold text-[#101828]">
-                Discovered models
-              </h3>
-              <p className="mt-0.5 text-sm text-[#667085]">
-                {diff.models.length} returned · {newModels.length} new
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            title="Close"
-            className="flex size-9 items-center justify-center rounded-lg text-[#667085] hover:bg-[#f2f4f7]"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {diff.models.length ? (
-            <div className="divide-y divide-[#eef0f3]">
-              {diff.models.map((model) => {
-                const alreadyAdded = existing.has(model);
-                const selected = diff.selected.includes(model);
-                return (
-                  <label
-                    key={model}
-                    className={`flex min-h-11 items-center gap-3 px-2 py-2 ${alreadyAdded ? "cursor-default" : "cursor-pointer hover:bg-[#f9fafb]"}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={alreadyAdded || selected}
-                      disabled={alreadyAdded}
-                      onChange={() =>
-                        onChange(
-                          selected
-                            ? diff.selected.filter((selectedModel) => selectedModel !== model)
-                            : [...diff.selected, model],
-                        )
-                      }
-                      className="size-4 accent-[#0284c7]"
-                    />
-                    <span className="min-w-0 flex-1 truncate font-mono text-sm text-[#344054]">
-                      {model}
-                    </span>
-                    {alreadyAdded ? (
-                      <span className="text-xs font-medium text-[#667085]">Existing</span>
-                    ) : (
-                      <span className="text-xs font-medium text-[#027a48]">New</span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex min-h-40 items-center justify-center text-sm text-[#667085]">
-              No models returned
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-[#e5e7eb] px-5 py-4">
+    <Modal
+      title="Discovered models"
+      description={`${diff.models.length} returned · ${newModels.length} new`}
+      leading={<ProtocolIcon protocol={diff.protocol} decorative />}
+      onClose={onClose}
+      size="md"
+      layer="nested"
+      footer={
+        <>
           <button
             type="button"
             disabled={!newModels.length || pending}
             onClick={() => onChange(newModels)}
-            className="text-sm font-medium text-[#0369a1] disabled:text-[#98a2b3]"
+            className="mr-auto text-sm font-medium text-[#0071e3] disabled:text-[#a1a1a6]"
           >
             Select all new
           </button>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={pending}
-              className="h-9 rounded-lg border border-[#d0d5dd] px-3 text-sm font-medium text-[#344054] hover:bg-[#f9fafb]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={!diff.selected.length || pending}
-              className="inline-flex h-9 min-w-28 items-center justify-center rounded-lg bg-[#0f172a] px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {pending ? "Adding..." : `Add ${diff.selected.length}`}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={pending}
+            className="h-9 rounded-md border border-black/10 bg-white px-3 text-sm font-medium text-[#1d1d1f] shadow-sm hover:bg-[#f5f5f7]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!diff.selected.length || pending}
+            className="inline-flex h-9 min-w-28 items-center justify-center rounded-md bg-[#0071e3] px-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "Adding..." : `Add ${diff.selected.length}`}
+          </button>
+        </>
+      }
+    >
+      {diff.models.length ? (
+        <div className="divide-y divide-black/[0.06]">
+          {diff.models.map((model) => {
+            const alreadyAdded = existing.has(model);
+            const selected = diff.selected.includes(model);
+            return (
+              <label
+                key={model}
+                className={`flex min-h-11 items-center gap-3 rounded-md px-2 py-2 ${alreadyAdded ? "cursor-default" : "cursor-pointer hover:bg-[#f5f5f7]"}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={alreadyAdded || selected}
+                  disabled={alreadyAdded}
+                  onChange={() =>
+                    onChange(
+                      selected
+                        ? diff.selected.filter((selectedModel) => selectedModel !== model)
+                        : [...diff.selected, model],
+                    )
+                  }
+                  className="size-4 accent-[#0071e3]"
+                />
+                <span className="min-w-0 flex-1 truncate font-mono text-sm text-[#3a3a3c]">
+                  {model}
+                </span>
+                <span
+                  className={`text-xs font-medium ${alreadyAdded ? "text-[#86868b]" : "text-[#248a3d]"}`}
+                >
+                  {alreadyAdded ? "Existing" : "New"}
+                </span>
+              </label>
+            );
+          })}
         </div>
-      </div>
-    </div>
+      ) : (
+        <div className="flex min-h-40 items-center justify-center text-sm text-[#6e6e73]">
+          No models returned
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -696,33 +748,27 @@ function DeleteDialog({ provider, onClose }: { provider: ProviderSummary; onClos
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/35 p-4 backdrop-blur-[1px]"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="delete-provider-title"
-    >
-      <div className="w-full max-w-md rounded-lg border border-[#e5e7eb] bg-white p-6 shadow-[0_24px_64px_rgba(15,23,42,0.22)]">
-        <div className="flex size-10 items-center justify-center rounded-full bg-[#fef3f2] text-[#d92d20]">
-          <Trash2 className="size-5" aria-hidden="true" />
+    <Modal
+      title={`Delete ${provider.name}?`}
+      description="Models routed only through this provider will stop resolving immediately."
+      leading={
+        <div className="flex size-9 items-center justify-center rounded-full bg-[#fff1f0] text-[#d70015]">
+          <Trash2 className="size-4.5" aria-hidden="true" />
         </div>
-        <h2 id="delete-provider-title" className="mt-4 text-base font-semibold text-[#101828]">
-          Delete {provider.name}?
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-[#667085]">
-          Models routed only through this provider will stop resolving immediately.
-        </p>
-        {error ? (
-          <p role="alert" className="mt-3 text-sm text-[#b42318]">
-            {error}
-          </p>
-        ) : null}
-        <div className="mt-6 flex justify-end gap-3">
+      }
+      onClose={onClose}
+      role="alertdialog"
+      size="sm"
+      closeOnBackdrop={false}
+      showClose={false}
+      bodyClassName="px-5 py-2"
+      footer={
+        <>
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="h-10 rounded-lg border border-[#d0d5dd] px-4 text-sm font-medium text-[#344054] transition hover:bg-[#f9fafb]"
+            className="h-9 rounded-md border border-black/10 bg-white px-4 text-sm font-medium text-[#1d1d1f] shadow-sm transition hover:bg-[#f5f5f7]"
           >
             Cancel
           </button>
@@ -730,17 +776,31 @@ function DeleteDialog({ provider, onClose }: { provider: ProviderSummary; onClos
             type="button"
             onClick={remove}
             disabled={pending}
-            className="h-10 rounded-lg bg-[#d92d20] px-4 text-sm font-semibold text-white transition hover:bg-[#b42318] disabled:cursor-wait disabled:opacity-60"
+            className="h-9 rounded-md bg-[#d70015] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c00012] disabled:cursor-wait disabled:opacity-60"
           >
             {pending ? "Deleting..." : "Delete"}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {error ? (
+        <p role="alert" className="rounded-md bg-[#fff1f0] px-3 py-2 text-sm text-[#b42318]">
+          {error}
+        </p>
+      ) : (
+        <p className="text-sm leading-6 text-[#6e6e73]">This action cannot be undone.</p>
+      )}
+    </Modal>
   );
 }
 
-export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
+export function ProvidersView({
+  providers,
+  responseTimePeriod,
+}: {
+  providers: ProviderSummary[];
+  responseTimePeriod: ProviderResponseTimePeriod;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -806,15 +866,9 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
   };
 
   return (
-    <div className="flex min-h-full w-full flex-col bg-white">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb] px-5 py-5 sm:px-7">
-        <div>
-          <h1 className="text-xl font-semibold text-[#101828]">Providers</h1>
-          <p className="mt-1 text-sm text-[#667085]">
-            {providers.length} configured · {providers.filter(({ enabled }) => enabled).length}{" "}
-            enabled
-          </p>
-        </div>
+        <h1 className="text-xl font-semibold text-[#101828]">Providers</h1>
         <button
           type="button"
           onClick={() => setEditing("new")}
@@ -834,28 +888,64 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full min-w-[940px] border-collapse text-left">
-            <thead className="sticky top-0 z-10 bg-[#fcfcfd]">
-              <tr className="border-b border-[#e5e7eb] text-xs font-medium uppercase text-[#667085]">
-                <th className="px-5 py-3 sm:pl-7">
-                  <TableFilter label="Provider" parameter="query" placeholder="Search providers" />
-                </th>
-                <th className="px-5 py-3">Endpoint</th>
-                <th className="px-5 py-3">Protocols</th>
-                <th className="px-5 py-3">Avg response (30m)</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right sm:pr-7">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#eef0f3]">
+        <DataTablePanel
+          minWidth={980}
+          footer={
+            <p className="text-sm text-[#667085]">
+              <span className="font-medium tabular-nums text-[#344054]">
+                {filteredProviders.length}
+              </span>{" "}
+              {filteredProviders.length === 1 ? "provider" : "providers"}
+              {filteredProviders.length !== providers.length ? ` of ${providers.length}` : ""}
+            </p>
+          }
+          header={
+            <DataTable className="table-fixed text-center">
+              <ProviderTableColumns />
+              <DataTableHeader>
+                <DataTableHeaderRow>
+                  <DataTableHead>
+                    <TableFilter
+                      label="Provider"
+                      parameter="query"
+                      placeholder="Search providers"
+                    />
+                  </DataTableHead>
+                  <DataTableHead>Endpoint</DataTableHead>
+                  <DataTableHead>Protocols</DataTableHead>
+                  <DataTableHead>
+                    <TableFilter
+                      label="Avg response"
+                      parameter="responseTimePeriod"
+                      defaultValue="30m"
+                      options={[
+                        { label: "Last 30 minutes", value: "30m" },
+                        { label: "Last hour", value: "1h" },
+                        { label: "Last 6 hours", value: "6h" },
+                        { label: "Last 24 hours", value: "24h" },
+                        { label: "Last 7 days", value: "7d" },
+                        { label: "Last 30 days", value: "30d" },
+                        { label: "All time", value: "all" },
+                      ]}
+                    />
+                  </DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
+                  <DataTableHead pinned="right">Actions</DataTableHead>
+                </DataTableHeaderRow>
+              </DataTableHeader>
+            </DataTable>
+          }
+        >
+          <DataTable className="table-fixed text-center">
+            <ProviderTableColumns />
+            <DataTableBody>
               {filteredProviders.map((provider) => {
                 const responseTime = responseTimeBadge(provider.averageResponseTimeMs);
 
                 return (
-                  <tr key={provider.name} className="text-sm transition hover:bg-[#fcfcfd]">
-                    <td className="px-5 py-4 sm:pl-7">
-                      <div className="flex items-center gap-3">
+                  <DataTableRow key={provider.name}>
+                    <DataTableCell>
+                      <div className="flex items-center justify-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f1f5f9] text-[#475569]">
                           <ServerCog className="size-4.5" aria-hidden="true" />
                         </div>
@@ -881,10 +971,10 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
                           </p>
                         )}
                       </div>
-                    </td>
-                    <td className="px-5 py-4">
+                    </DataTableCell>
+                    <DataTableCell>
                       <p
-                        className="max-w-60 truncate font-mono text-xs text-[#475467]"
+                        className="mx-auto max-w-60 truncate font-mono text-xs text-[#475467]"
                         title={provider.baseUrl ?? undefined}
                       >
                         {provider.baseUrl ?? "Provider default"}
@@ -892,23 +982,23 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
                       <p className="mt-1 text-xs text-[#98a2b3]">
                         Updated {formatUpdatedAt(provider.updatedAt)}
                       </p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex max-w-56 flex-wrap gap-1.5">
+                    </DataTableCell>
+                    <DataTableCell>
+                      <div className="mx-auto flex w-fit max-w-56 flex-wrap justify-center gap-1.5">
                         {provider.protocols.map((protocol) => (
                           <ProtocolIcon key={protocol} protocol={protocol} />
                         ))}
                       </div>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-4">
+                    </DataTableCell>
+                    <DataTableCell className="whitespace-nowrap">
                       <span
-                        title="Average time to first byte over the last 30 minutes"
+                        title={`Average time to first byte over ${responseTimePeriodLabels[responseTimePeriod]}`}
                         className={`inline-flex min-w-16 justify-center rounded-md px-2.5 py-1 font-mono text-xs font-medium tabular-nums ${responseTime.className}`}
                       >
                         {responseTime.label}
                       </span>
-                    </td>
-                    <td className="px-5 py-4">
+                    </DataTableCell>
+                    <DataTableCell>
                       <button
                         type="button"
                         role="switch"
@@ -931,9 +1021,9 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
                           ) : null}
                         </span>
                       </button>
-                    </td>
-                    <td className="px-5 py-4 sm:pr-7">
-                      <div className="flex justify-end gap-1">
+                    </DataTableCell>
+                    <DataTableCell pinned="right">
+                      <div className="flex justify-center gap-1">
                         <button
                           type="button"
                           onClick={() => test(provider)}
@@ -971,39 +1061,38 @@ export function ProvidersView({ providers }: { providers: ProviderSummary[] }) {
                           <Trash2 className="size-4" aria-hidden="true" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 );
               })}
-            </tbody>
-          </table>
-
-          {!filteredProviders.length ? (
-            <div className="flex min-h-80 flex-col items-center justify-center px-6 py-12 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-[#f1f5f9] text-[#475569]">
-                <ServerCog className="size-5" aria-hidden="true" />
-              </div>
-              <h2 className="mt-4 text-sm font-semibold text-[#101828]">
-                {providers.length ? "No providers found" : "No providers configured"}
-              </h2>
-              <p className="mt-1 text-sm text-[#667085]">
-                {providers.length
-                  ? "Try another search."
-                  : "Add a provider to start routing models."}
-              </p>
-              {!providers.length ? (
-                <button
-                  type="button"
-                  onClick={() => setEditing("new")}
-                  className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-[#d0d5dd] px-3 text-sm font-medium text-[#344054] transition hover:bg-[#f9fafb]"
-                >
-                  <Plus className="size-4" aria-hidden="true" />
-                  Add provider
-                </button>
+              {!filteredProviders.length ? (
+                <DataTableEmptyState
+                  colSpan={6}
+                  className="min-h-80"
+                  icon={<ServerCog className="size-5" aria-hidden="true" />}
+                  title={providers.length ? "No providers found" : "No providers configured"}
+                  description={
+                    providers.length
+                      ? "Try another search."
+                      : "Add a provider to start routing models."
+                  }
+                  action={
+                    !providers.length ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditing("new")}
+                        className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-[#d0d5dd] px-3 text-sm font-medium text-[#344054] transition hover:bg-[#f9fafb]"
+                      >
+                        <Plus className="size-4" aria-hidden="true" />
+                        Add provider
+                      </button>
+                    ) : undefined
+                  }
+                />
               ) : null}
-            </div>
-          ) : null}
-        </div>
+            </DataTableBody>
+          </DataTable>
+        </DataTablePanel>
       </div>
 
       {editing ? (

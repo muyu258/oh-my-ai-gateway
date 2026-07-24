@@ -28,6 +28,7 @@ export const selectProvider = (providers: Provider[]): Provider => {
   return provider;
 };
 
-export const collectModels = (providers: Provider[]): string[] => [
-  ...new Set(providers.flatMap(({ models }) => models)),
-];
+export const collectModels = (providers: Provider[]): string[] =>
+  [...new Set(providers.flatMap(({ models }) => models))].sort((left, right) =>
+    left.localeCompare(right),
+  );

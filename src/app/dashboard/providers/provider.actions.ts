@@ -39,6 +39,7 @@ const getGatewayBaseUrl = async (): Promise<string> => {
 const providerSchema = z.object({
   name: nameSchema,
   models: z.array(z.string().trim().min(1)).min(1, "Add at least one model."),
+  testModel: z.string().trim().min(1, "Select a test model."),
   protocols: z.array(z.enum(ProtocolType)).min(1, "Select at least one protocol."),
   protocolEndpoints: z.partialRecord(
     z.enum(ProtocolType),
@@ -50,20 +51,28 @@ const providerSchema = z.object({
   enabled: z.boolean(),
 });
 
-const normalizeInput = (input: ProviderFormInput): ProviderFormInput => ({
-  ...input,
-  name: input.name.trim(),
-  models: [...new Set(input.models.map((model) => model.trim()).filter(Boolean))],
-  protocols: [...new Set(input.protocols)],
-  protocolEndpoints: Object.fromEntries(
-    Object.entries(input.protocolEndpoints)
-      .map(([protocol, endpoint]) => [protocol, endpoint?.trim()])
-      .filter((entry): entry is [string, string] => Boolean(entry[1])),
-  ),
-  websiteUrl: input.websiteUrl.trim(),
-  baseUrl: input.baseUrl.trim(),
-  providerToken: input.providerToken.trim(),
-});
+const normalizeInput = (input: ProviderFormInput): ProviderFormInput => {
+  const models = [...new Set(input.models.map((model) => model.trim()).filter(Boolean))].sort(
+    (left, right) => left.localeCompare(right),
+  );
+  const requestedTestModel = input.testModel.trim();
+
+  return {
+    ...input,
+    name: input.name.trim(),
+    models,
+    testModel: models.includes(requestedTestModel) ? requestedTestModel : (models[0] ?? ""),
+    protocols: [...new Set(input.protocols)],
+    protocolEndpoints: Object.fromEntries(
+      Object.entries(input.protocolEndpoints)
+        .map(([protocol, endpoint]) => [protocol, endpoint?.trim()])
+        .filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ),
+    websiteUrl: input.websiteUrl.trim(),
+    baseUrl: input.baseUrl.trim(),
+    providerToken: input.providerToken.trim(),
+  };
+};
 
 const errorResult = (error: unknown): ProviderActionResult => {
   if (error instanceof z.ZodError) {
@@ -107,6 +116,7 @@ export const updateProviderAction = async (
     await updateProvider(existingName, {
       name: parsed.name,
       models: parsed.models,
+      testModel: parsed.testModel,
       protocols: parsed.protocols,
       protocolEndpoints: parsed.protocolEndpoints,
       websiteUrl: parsed.websiteUrl || undefined,

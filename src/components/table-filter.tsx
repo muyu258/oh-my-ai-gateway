@@ -94,20 +94,6 @@ export function TableFilter({
         <div
           className={`absolute top-full z-30 mt-2 w-64 rounded-lg border border-[#e5e7eb] bg-white p-3 text-left normal-case tracking-normal shadow-[0_12px_28px_rgba(15,23,42,0.14)] ${align === "right" ? "right-0" : "left-0"}`}
         >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#344054]">
-              Filter by {label.toLowerCase()}
-            </span>
-            <button
-              type="button"
-              aria-label="Close filter"
-              onClick={() => setOpen(false)}
-              className="text-[#98a2b3] transition hover:text-[#344054]"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-
           <span className="relative block">
             {options ? (
               <select

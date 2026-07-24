@@ -56,13 +56,14 @@ export const testProviderProtocol = async (
   if (!provider.protocols.includes(protocol))
     throw new Error("Enable this protocol before testing it.");
 
-  const model = provider.models.at(0)?.trim();
+  const model = provider.testModel?.trim() || provider.models.at(0)?.trim();
   if (!model) throw new Error("Add at least one model before testing this protocol.");
 
   const adapter = adapters[protocol];
   const headers = discoveryHeaders({ ...provider, providerToken: gateway.token }, protocol);
   headers.set("content-type", "application/json");
   headers.set("x-provider-name", provider.name);
+  headers.set("user-agent", "gateway/test");
   const startedAt = performance.now();
   const response = await fetch(appendEndpoint(gateway.baseUrl, adapter.defaultEndpoint), {
     method: "POST",

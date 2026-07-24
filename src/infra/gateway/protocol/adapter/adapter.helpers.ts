@@ -126,6 +126,7 @@ const readResponseCompletion = async (
       const payload: unknown = JSON.parse(text);
       return { type: "completed", payload };
     } catch (error) {
+      if (!response.ok) return { type: "completed", payload: text };
       return { type: "failed", error };
     }
   } catch (error) {

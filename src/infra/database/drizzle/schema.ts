@@ -32,6 +32,7 @@ export type NewRequestRecord = typeof requestRecord.$inferInsert;
 export const provider = sqliteTable("provider", {
   name: text("name").primaryKey(),
   models: text("models", { mode: "json" }).$type<string[]>().notNull(),
+  testModel: text("test_model"),
   protocols: text("protocols", { mode: "json" }).$type<string[]>().notNull(),
   protocolEndpoints: text("protocol_endpoints", { mode: "json" })
     .$type<Partial<Record<string, string>>>()
