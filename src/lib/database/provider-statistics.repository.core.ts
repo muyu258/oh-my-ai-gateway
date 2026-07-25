@@ -1,4 +1,4 @@
-import { and, avg, gte, isNotNull } from "drizzle-orm";
+import { and, avg, gte, isNotNull, sql, sum } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 import * as schema from "./drizzle/schema";
@@ -19,24 +19,55 @@ const periodInMilliseconds: Partial<Record<ProviderStatisticsPeriod, number>> = 
 export const createProviderStatisticsRepository = <TRunResult>(
   database: BaseSQLiteDatabase<"sync", TRunResult, typeof schema>,
 ) => ({
-  getAverageResponseTimes: async (
+  getProviderStatistics: async (
     period: ProviderStatisticsPeriod,
     now = new Date(),
-  ): Promise<Array<{ name: string | null; averageResponseTimeMs: number }>> => {
+  ): Promise<
+    Array<{
+      name: string | null;
+      averageResponseTimeMs: number | null;
+      inputTokens: number | null;
+      outputTokens: number | null;
+      cacheReadInputTokens: number | null;
+      costMicros: number | null;
+      costComplete: boolean;
+    }>
+  > => {
     const duration = periodInMilliseconds[period];
-    return database
+    const rows = await database
       .select({
         name: usage.name,
         averageResponseTimeMs: avg(usage.timeToFirstByteMs).mapWith(Number),
+        inputTokens: sum(
+          sql<number>`case
+            when ${usage.inputTokens} is null
+              and ${usage.cacheCreationInputTokens} is null
+              and ${usage.cacheReadInputTokens} is null then null
+            else coalesce(${usage.inputTokens}, 0)
+              + coalesce(${usage.cacheCreationInputTokens}, 0)
+              + coalesce(${usage.cacheReadInputTokens}, 0)
+          end`,
+        ).mapWith(Number),
+        outputTokens: sum(usage.outputTokens).mapWith(Number),
+        cacheReadInputTokens: sum(usage.cacheReadInputTokens).mapWith(Number),
+        costMicros: sum(usage.costMicros).mapWith(Number),
+        incompleteCostCount:
+          sql<number>`sum(case when ${usage.costStatus} = 'complete' then 0 else 1 end)`.mapWith(
+            Number,
+          ),
       })
       .from(usage)
       .where(
         and(
           duration ? gte(usage.startAt, new Date(now.getTime() - duration)) : undefined,
           isNotNull(usage.name),
-          isNotNull(usage.timeToFirstByteMs),
         ),
       )
       .groupBy(usage.name);
+
+    return rows.map(({ incompleteCostCount, ...row }) => ({
+      ...row,
+      costComplete: incompleteCostCount === 0,
+    }));
   },
 });

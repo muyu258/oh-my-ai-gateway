@@ -76,17 +76,33 @@ body {
   background-color: rgb(0 0 0 / 20%);
 }
 
+.data-table-panel {
+  contain: paint;
+}
+
+.data-table-panel[data-hidden-left="true"] .data-table-pinned-left {
+  box-shadow: 10px 0 16px -16px rgb(0 0 0 / 45%);
+}
+
 .data-table-panel[data-hidden-right="true"] .data-table-pinned-right {
   box-shadow: -10px 0 16px -16px rgb(0 0 0 / 45%);
 }
 
-.data-table-panel[data-hidden-right="true"] .data-table-pinned-boundary::after {
+.data-table-panel[data-hidden-left="true"] .data-table-pinned-boundary-left::after,
+.data-table-panel[data-hidden-right="true"] .data-table-pinned-boundary-right::after {
   position: absolute;
   inset-block: 0;
-  left: 0;
   width: 1px;
   background: #d1d1d6;
   content: "";
+}
+
+.data-table-panel[data-hidden-left="true"] .data-table-pinned-boundary-left::after {
+  right: 0;
+}
+
+.data-table-panel[data-hidden-right="true"] .data-table-pinned-boundary-right::after {
+  left: 0;
 }
 
 @keyframes modal-backdrop-in {

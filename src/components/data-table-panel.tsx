@@ -13,6 +13,9 @@ export const hasHiddenContentToRight = (
   scrollWidth: number,
 ): boolean => scrollLeft + clientWidth < scrollWidth - HORIZONTAL_OVERFLOW_TOLERANCE;
 
+export const hasHiddenContentToLeft = (scrollLeft: number): boolean =>
+  scrollLeft > HORIZONTAL_OVERFLOW_TOLERANCE;
+
 export function DataTablePanel({
   header,
   children,
@@ -29,9 +32,11 @@ export function DataTablePanel({
   const headerViewportRef = useRef<HTMLDivElement>(null);
   const bodyViewportRef = useRef<HTMLDivElement>(null);
   const bodyContentRef = useRef<HTMLDivElement>(null);
+  const [hiddenContentToLeft, setHiddenContentToLeft] = useState(false);
   const [hiddenContentToRight, setHiddenContentToRight] = useState(false);
 
   const updatePinnedBoundary = useCallback((viewport: HTMLDivElement) => {
+    setHiddenContentToLeft(hasHiddenContentToLeft(viewport.scrollLeft));
     setHiddenContentToRight(
       hasHiddenContentToRight(viewport.scrollLeft, viewport.clientWidth, viewport.scrollWidth),
     );
@@ -62,6 +67,7 @@ export function DataTablePanel({
 
   return (
     <section
+      data-hidden-left={hiddenContentToLeft || undefined}
       data-hidden-right={hiddenContentToRight || undefined}
       className={classes(
         "data-table-panel flex h-full min-h-0 w-full flex-col overflow-hidden bg-white",

@@ -23,9 +23,19 @@ export function DataTableHeaderRow({ className, ...props }: ComponentPropsWithou
 }
 
 type PinnedCellProps = {
-  pinned?: "right";
-  pinOffset?: CSSProperties["right"];
+  pinned?: "left" | "right";
+  pinOffset?: CSSProperties["left"] | CSSProperties["right"];
   pinnedBoundary?: boolean;
+};
+
+const pinnedStyle = (
+  pinned: PinnedCellProps["pinned"],
+  pinOffset: PinnedCellProps["pinOffset"],
+  style: CSSProperties | undefined,
+): CSSProperties | undefined => {
+  if (pinned === "left") return { ...style, left: pinOffset };
+  if (pinned === "right") return { ...style, right: pinOffset };
+  return style;
 };
 
 export function DataTableHead({
@@ -40,11 +50,11 @@ export function DataTableHead({
     <th
       className={classes(
         "px-5 py-3",
-        pinned === "right" ? "data-table-pinned-right sticky z-20 bg-[#fbfbfd]" : undefined,
-        pinned === "right" && pinnedBoundary ? "data-table-pinned-boundary" : undefined,
+        pinned ? `data-table-pinned-${pinned} sticky z-20 bg-[#fbfbfd]` : undefined,
+        pinned && pinnedBoundary ? `data-table-pinned-boundary-${pinned}` : undefined,
         className,
       )}
-      style={pinned === "right" ? { ...style, right: pinOffset } : style}
+      style={pinnedStyle(pinned, pinOffset, style)}
       {...props}
     />
   );
@@ -78,13 +88,13 @@ export function DataTableCell({
     <td
       className={classes(
         "px-5 py-4",
-        pinned === "right"
-          ? "data-table-pinned-right sticky z-[2] bg-white transition-colors duration-150 ease-out group-hover:bg-[#f7f7f9]"
+        pinned
+          ? `data-table-pinned-${pinned} sticky z-[2] bg-white transition-colors duration-150 ease-out group-hover:bg-[#f7f7f9]`
           : undefined,
-        pinned === "right" && pinnedBoundary ? "data-table-pinned-boundary" : undefined,
+        pinned && pinnedBoundary ? `data-table-pinned-boundary-${pinned}` : undefined,
         className,
       )}
-      style={pinned === "right" ? { ...style, right: pinOffset } : style}
+      style={pinnedStyle(pinned, pinOffset, style)}
       {...props}
     />
   );

@@ -58,6 +58,11 @@ export type ProviderSummary = Pick<
   | "updatedAt"
 > & {
   averageResponseTimeMs: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadInputTokens: number | null;
+  costMicros: number | null;
+  costComplete: boolean;
 };
 
 export type CreateProviderInput = NewProviderRecord;
@@ -74,14 +79,12 @@ export const getProviders = async (): Promise<Provider[]> => {
 export const getProviderSummaries = async (
   statisticsPeriod: ProviderStatisticsPeriod = "30m",
 ): Promise<ProviderSummary[]> => {
-  const { getAverageResponseTimes } = createProviderStatisticsRepository(db);
-  const [providerRecords, responseTimeAverages] = await Promise.all([
+  const { getProviderStatistics } = createProviderStatisticsRepository(db);
+  const [providerRecords, statistics] = await Promise.all([
     getProviders(),
-    getAverageResponseTimes(statisticsPeriod),
+    getProviderStatistics(statisticsPeriod),
   ]);
-  const averageByProvider = new Map(
-    responseTimeAverages.map(({ name, averageResponseTimeMs }) => [name, averageResponseTimeMs]),
-  );
+  const statisticsByProvider = new Map(statistics.map((summary) => [summary.name, summary]));
 
   return providerRecords.map((record) => {
     const {
@@ -96,6 +99,7 @@ export const getProviderSummaries = async (
       pricingOverrides,
       updatedAt,
     } = record;
+    const providerStatistics = statisticsByProvider.get(name);
     return {
       name,
       models,
@@ -107,7 +111,12 @@ export const getProviderSummaries = async (
       costMultiplier,
       pricingOverrides,
       updatedAt,
-      averageResponseTimeMs: averageByProvider.get(name) ?? null,
+      averageResponseTimeMs: providerStatistics?.averageResponseTimeMs ?? null,
+      inputTokens: providerStatistics?.inputTokens ?? null,
+      outputTokens: providerStatistics?.outputTokens ?? null,
+      cacheReadInputTokens: providerStatistics?.cacheReadInputTokens ?? null,
+      costMicros: providerStatistics?.costMicros ?? null,
+      costComplete: providerStatistics?.costComplete ?? true,
     };
   });
 };

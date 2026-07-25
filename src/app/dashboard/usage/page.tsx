@@ -222,7 +222,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
           <UsageTableColumns />
           <DataTableHeader>
             <DataTableHeaderRow className="tracking-wide">
-              <DataTableHead>Name</DataTableHead>
+              <DataTableHead pinned="left">Name</DataTableHead>
               <DataTableHead>
                 <TableFilter
                   label="Time"
@@ -299,7 +299,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                   recordId={record.id}
                   recordJson={JSON.stringify(record, null, 2)}
                 >
-                  <DataTableCell>
+                  <DataTableCell pinned="left">
                     <p
                       className="mx-auto max-w-48 truncate text-[#475467]"
                       title={record.name ?? undefined}

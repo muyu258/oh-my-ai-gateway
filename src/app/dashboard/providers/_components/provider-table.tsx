@@ -1,6 +1,16 @@
 "use client";
 
-import { Check, LoaderCircle, Pencil, PlugZap, Plus, ServerCog, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  LoaderCircle,
+  Pencil,
+  PlugZap,
+  Plus,
+  ServerCog,
+  Trash2,
+} from "lucide-react";
 
 import {
   DataTable,
@@ -25,14 +35,39 @@ import {
 
 const ProviderTableColumns = () => (
   <colgroup>
-    <col className="w-[21%]" />
-    <col className="w-[23%]" />
-    <col className="w-[16%]" />
-    <col className="w-[14%]" />
-    <col className="w-[10%]" />
-    <col className="w-[16%]" />
+    <col className="w-[170px]" />
+    <col className="w-[280px]" />
+    <col className="w-[150px]" />
+    <col className="w-[180px]" />
+    <col className="w-[140px]" />
+    <col className="w-[140px]" />
+    <col className="w-[100px]" />
+    <col className="w-[120px]" />
   </colgroup>
 );
+
+const formatCompactNumber = (value: number): string =>
+  new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
+const formatCost = (costMicros: number): string => {
+  const whole = Math.floor(costMicros / 1_000_000);
+  const fraction = String(costMicros % 1_000_000)
+    .padStart(6, "0")
+    .replace(/0+$/, "")
+    .padEnd(2, "0");
+  return `$${new Intl.NumberFormat("en-US").format(whole)}.${fraction}`;
+};
+
+const getCachedInputPercentage = (provider: ProviderSummary): number | null => {
+  if (
+    provider.inputTokens === null ||
+    provider.inputTokens <= 0 ||
+    provider.cacheReadInputTokens === null
+  ) {
+    return null;
+  }
+  return Math.min(100, Math.round((provider.cacheReadInputTokens / provider.inputTokens) * 100));
+};
 
 export function ProviderTable({
   providers,
@@ -59,17 +94,19 @@ export function ProviderTable({
 }) {
   return (
     <DataTablePanel
-      minWidth={980}
+      minWidth={1280}
       header={
         <DataTable className="table-fixed text-center">
           <ProviderTableColumns />
           <DataTableHeader>
             <DataTableHeaderRow>
-              <DataTableHead>
+              <DataTableHead pinned="left">
                 <TableFilter label="Provider" parameter="query" placeholder="Search providers" />
               </DataTableHead>
               <DataTableHead>Base URL</DataTableHead>
               <DataTableHead>Protocols</DataTableHead>
+              <DataTableHead>Tokens</DataTableHead>
+              <DataTableHead>Cost</DataTableHead>
               <DataTableHead>Avg TTFB</DataTableHead>
               <DataTableHead>Status</DataTableHead>
               <DataTableHead pinned="right">Actions</DataTableHead>
@@ -83,10 +120,12 @@ export function ProviderTable({
         <DataTableBody>
           {providers.map((provider) => {
             const responseTime = responseTimeBadge(provider.averageResponseTimeMs);
+            const cachedInputPercentage = getCachedInputPercentage(provider);
+            const hasTokens = provider.inputTokens !== null || provider.outputTokens !== null;
 
             return (
               <DataTableRow key={provider.name}>
-                <DataTableCell>
+                <DataTableCell pinned="left">
                   <div className="flex items-center justify-center">
                     {provider.websiteUrl ? (
                       <a
@@ -129,6 +168,58 @@ export function ProviderTable({
                   </div>
                 </DataTableCell>
                 <DataTableCell className="whitespace-nowrap">
+                  {hasTokens ? (
+                    <div className="mx-auto flex w-fit flex-col items-center gap-1 text-xs tabular-nums">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-[#667085]" title="Output tokens">
+                          <ArrowDown className="size-3.5" aria-hidden="true" />
+                          <span className="sr-only">Output tokens</span>
+                        </span>
+                        <span className="font-medium text-[#344054]">
+                          {provider.outputTokens === null
+                            ? "—"
+                            : formatCompactNumber(provider.outputTokens)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-[#667085]" title="Input tokens">
+                          <ArrowUp className="size-3.5" aria-hidden="true" />
+                          <span className="sr-only">Input tokens</span>
+                        </span>
+                        <span className="font-medium text-[#344054]">
+                          {provider.inputTokens === null
+                            ? "—"
+                            : formatCompactNumber(provider.inputTokens)}
+                          {cachedInputPercentage !== null ? (
+                            <span
+                              className="ml-1 text-[#248a3d]"
+                              title={`${cachedInputPercentage}% of input tokens served from cache`}
+                            >
+                              ({cachedInputPercentage}%)
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-[#98a2b3]">—</span>
+                  )}
+                </DataTableCell>
+                <DataTableCell className="whitespace-nowrap">
+                  {provider.costMicros !== null ? (
+                    <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
+                      {formatCost(provider.costMicros)}
+                      {!provider.costComplete ? (
+                        <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
+                          Partial
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-[#98a2b3]">—</span>
+                  )}
+                </DataTableCell>
+                <DataTableCell className="whitespace-nowrap">
                   <span
                     title={`Average time to first byte over ${statisticsPeriodLabels[statisticsPeriod]}`}
                     className={`inline-flex min-w-16 justify-center rounded-md px-2.5 py-1 font-mono text-xs font-medium tabular-nums ${responseTime.className}`}
@@ -160,7 +251,7 @@ export function ProviderTable({
                     </span>
                   </button>
                 </DataTableCell>
-                <DataTableCell pinned="right">
+                <DataTableCell pinned="right" className="px-2">
                   <div className="flex justify-center gap-1">
                     <button
                       type="button"
@@ -174,7 +265,7 @@ export function ProviderTable({
                       title={
                         provider.enabled ? "Test first protocol" : "Enable provider before testing"
                       }
-                      className="flex size-9 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex size-8 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {testingProvider === provider.name ? (
                         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -187,7 +278,7 @@ export function ProviderTable({
                       onClick={() => onEdit(provider)}
                       aria-label={`Edit ${provider.name}`}
                       title="Edit"
-                      className="flex size-9 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054]"
+                      className="flex size-8 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054]"
                     >
                       <Pencil className="size-4" aria-hidden="true" />
                     </button>
@@ -196,7 +287,7 @@ export function ProviderTable({
                       onClick={() => onDelete(provider)}
                       aria-label={`Delete ${provider.name}`}
                       title="Delete"
-                      className="flex size-9 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20]"
+                      className="flex size-8 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20]"
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
@@ -207,7 +298,7 @@ export function ProviderTable({
           })}
           {!providers.length ? (
             <DataTableEmptyState
-              colSpan={6}
+              colSpan={8}
               className="min-h-80"
               icon={<ServerCog className="size-5" aria-hidden="true" />}
               title={totalProviders ? "No providers found" : "No providers configured"}

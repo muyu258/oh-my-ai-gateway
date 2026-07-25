@@ -6,7 +6,7 @@ import * as schema from "./drizzle/schema";
 import { createProviderStatisticsRepository } from "./provider-statistics.repository.core";
 
 describe("provider statistics", () => {
-  test("averages non-null TTFB values within the selected period", async () => {
+  test("aggregates response time, tokens, and cost by provider and period", async () => {
     const sqlite = new Database(":memory:");
     sqlite.exec(`
       CREATE TABLE usage (
@@ -40,39 +40,125 @@ describe("provider statistics", () => {
         name: "Provider A",
         startAt: new Date(now.getTime() - 5 * 60 * 1000),
         timeToFirstByteMs: 100,
+        inputTokens: 100,
+        outputTokens: 50,
+        cacheCreationInputTokens: 20,
+        cacheReadInputTokens: 30,
+        costMicros: 1_000,
+        costStatus: "complete",
       },
       {
-        id: "recent-2",
+        id: "period-boundary",
         name: "Provider A",
-        startAt: new Date(now.getTime() - 10 * 60 * 1000),
+        startAt: new Date(now.getTime() - 30 * 60 * 1000),
         timeToFirstByteMs: 300,
+        outputTokens: 0,
+        cacheReadInputTokens: 50,
+        costMicros: 2_000,
+        costStatus: "partial",
       },
       {
         id: "missing-ttfb",
         name: "Provider A",
         startAt: new Date(now.getTime() - 15 * 60 * 1000),
+        costStatus: "unavailable",
       },
       {
-        id: "old",
+        id: "outside-period",
         name: "Provider A",
-        startAt: new Date(now.getTime() - 60 * 60 * 1000),
+        startAt: new Date(now.getTime() - 30 * 60 * 1000 - 1),
         timeToFirstByteMs: 900,
+        inputTokens: 900,
+        outputTokens: 100,
+        cacheReadInputTokens: 100,
+        costMicros: 9_000,
+        costStatus: "complete",
       },
       {
         id: "provider-b",
         name: "Provider B",
         startAt: new Date(now.getTime() - 20 * 60 * 1000),
         timeToFirstByteMs: 500,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        costMicros: 0,
+        costStatus: "complete",
+      },
+      {
+        id: "provider-c-null-values",
+        name: "Provider C",
+        startAt: new Date(now.getTime() - 10 * 60 * 1000),
+      },
+      {
+        id: "unnamed",
+        startAt: new Date(now.getTime() - 10 * 60 * 1000),
+        timeToFirstByteMs: 1,
+        inputTokens: 1,
+        costMicros: 1,
+        costStatus: "complete",
       },
     ]);
 
-    expect(await repository.getAverageResponseTimes("30m", now)).toEqual([
-      { name: "Provider A", averageResponseTimeMs: 200 },
-      { name: "Provider B", averageResponseTimeMs: 500 },
+    expect(await repository.getProviderStatistics("30m", now)).toEqual([
+      {
+        name: "Provider A",
+        averageResponseTimeMs: 200,
+        inputTokens: 200,
+        outputTokens: 50,
+        cacheReadInputTokens: 80,
+        costMicros: 3_000,
+        costComplete: false,
+      },
+      {
+        name: "Provider B",
+        averageResponseTimeMs: 500,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        costMicros: 0,
+        costComplete: true,
+      },
+      {
+        name: "Provider C",
+        averageResponseTimeMs: null,
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadInputTokens: null,
+        costMicros: null,
+        costComplete: false,
+      },
     ]);
-    expect(await repository.getAverageResponseTimes("all", now)).toEqual([
-      { name: "Provider A", averageResponseTimeMs: 1300 / 3 },
-      { name: "Provider B", averageResponseTimeMs: 500 },
+
+    expect(await repository.getProviderStatistics("all", now)).toEqual([
+      {
+        name: "Provider A",
+        averageResponseTimeMs: 1300 / 3,
+        inputTokens: 1_200,
+        outputTokens: 150,
+        cacheReadInputTokens: 180,
+        costMicros: 12_000,
+        costComplete: false,
+      },
+      {
+        name: "Provider B",
+        averageResponseTimeMs: 500,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        costMicros: 0,
+        costComplete: true,
+      },
+      {
+        name: "Provider C",
+        averageResponseTimeMs: null,
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadInputTokens: null,
+        costMicros: null,
+        costComplete: false,
+      },
     ]);
 
     sqlite.close();
