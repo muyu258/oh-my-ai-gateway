@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./drizzle/schema";
 import { createUsageRepository } from "./usage.repository.core";
 
-describe("getUsages", () => {
+describe("createUsageRepository", () => {
   test("queries usage metadata without requiring a content table", async () => {
     const sqlite = new Database(":memory:");
     sqlite.exec(`

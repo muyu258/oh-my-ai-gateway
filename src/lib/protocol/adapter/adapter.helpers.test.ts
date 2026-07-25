@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { withHeaders } from "./adapter.helpers";
 
-describe("withHeaders", () => {
+describe("adapter helpers: withHeaders", () => {
   test("replaces gateway headers with upstream headers", () => {
     const request = new Request("https://provider.example/v1/messages", {
       method: "POST",

@@ -12,7 +12,10 @@ describe("provider cost pricing migration", () => {
       INSERT INTO usage (id) VALUES ('historical-usage');
     `);
 
-    const migration = readFileSync(new URL("./0014_amused_darkhawk.sql", import.meta.url), "utf8");
+    const migration = readFileSync(
+      new URL("./migrations/0014_amused_darkhawk.sql", import.meta.url),
+      "utf8",
+    );
     sqlite.exec(migration);
 
     expect(

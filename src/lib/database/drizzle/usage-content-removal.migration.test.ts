@@ -24,13 +24,16 @@ describe("usage content removal migration", () => {
       VALUES ('usage-1', '{"secret":"request"}', '{"secret":"response"}', 100);
     `);
 
-    const migration = readFileSync(new URL("./0013_sad_stephen_strange.sql", import.meta.url), "utf8");
+    const migration = readFileSync(
+      new URL("./migrations/0013_sad_stephen_strange.sql", import.meta.url),
+      "utf8",
+    );
     sqlite.exec(migration);
 
     expect(
-      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(
-        "usage_content",
-      ),
+      sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get("usage_content"),
     ).toBeNull();
     expect(sqlite.prepare("SELECT id, model FROM usage").get()).toEqual({
       id: "usage-1",

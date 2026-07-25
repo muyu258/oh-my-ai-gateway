@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./drizzle/schema";
 import { createProviderStatisticsRepository } from "./provider-statistics.repository.core";
 
-describe("provider statistics", () => {
+describe("createProviderStatisticsRepository", () => {
   test("aggregates response time, tokens, and cost by provider and period", async () => {
     const sqlite = new Database(":memory:");
     sqlite.exec(`

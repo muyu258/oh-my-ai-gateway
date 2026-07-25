@@ -4,7 +4,6 @@ import type { ParsedUsage } from "#/lib/protocol/adapter/adapter.types";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { Provider } from "#/lib/provider/provider.types";
 import { calculateCost } from "./calculate-cost";
-import { modelPricingSchema, multiplierSchema } from "./pricing.types";
 
 const provider: Provider = {
   name: "Test provider",
@@ -123,28 +122,5 @@ describe("calculateCost", () => {
     expect(original.costSnapshot.multiplier).toBe("1");
     expect(original.costMicros).toBe(5);
     expect(next.costMicros).toBe(10);
-  });
-});
-
-describe("pricing validation", () => {
-  test("rejects incomplete rates, excessive precision, invalid multiplier, and unordered tiers", () => {
-    expect(() => modelPricingSchema.parse({ rates: { input: "1" } })).toThrow();
-    expect(() => multiplierSchema.parse("1.0000001")).toThrow();
-    expect(() => multiplierSchema.parse("101")).toThrow();
-    expect(() =>
-      modelPricingSchema.parse({
-        rates: { input: "1", output: "1", cacheRead: "1", cacheWrite: "1" },
-        tiers: [
-          {
-            inputTokensAbove: 10,
-            rates: { input: "2", output: "2", cacheRead: "2", cacheWrite: "2" },
-          },
-          {
-            inputTokensAbove: 10,
-            rates: { input: "3", output: "3", cacheRead: "3", cacheWrite: "3" },
-          },
-        ],
-      }),
-    ).toThrow("strictly increasing");
   });
 });

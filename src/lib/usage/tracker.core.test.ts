@@ -56,7 +56,7 @@ const request = () =>
     body: JSON.stringify({ model: "test-model", messages: [] }),
   });
 
-describe("processUsageTracking", () => {
+describe("tracker core: processUsageTracking", () => {
   test("persists usage metadata for a successful JSON response", async () => {
     const persistUsage = mock(async (_record: NewUsage) => {});
     const trackingRequest = request();

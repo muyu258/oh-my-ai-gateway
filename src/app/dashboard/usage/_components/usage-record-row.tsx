@@ -8,13 +8,7 @@ import { DataTableRow } from "#/components/data-table";
 import { JsonViewer } from "#/components/json-viewer";
 import { Modal } from "#/components/modal";
 
-export function UsageRecordDetails({
-  recordJson,
-  onClose,
-}: {
-  recordJson: string;
-  onClose: () => void;
-}) {
+function UsageRecordDetails({ recordJson, onClose }: { recordJson: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const record = useMemo(() => JSON.parse(recordJson) as object, [recordJson]);
 

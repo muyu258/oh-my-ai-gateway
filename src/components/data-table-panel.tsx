@@ -7,13 +7,13 @@ const classes = (...values: Array<string | undefined>): string => values.filter(
 
 const HORIZONTAL_OVERFLOW_TOLERANCE = 1;
 
-export const hasHiddenContentToRight = (
+const hasHiddenContentToRight = (
   scrollLeft: number,
   clientWidth: number,
   scrollWidth: number,
 ): boolean => scrollLeft + clientWidth < scrollWidth - HORIZONTAL_OVERFLOW_TOLERANCE;
 
-export const hasHiddenContentToLeft = (scrollLeft: number): boolean =>
+const hasHiddenContentToLeft = (scrollLeft: number): boolean =>
   scrollLeft > HORIZONTAL_OVERFLOW_TOLERANCE;
 
 export function DataTablePanel({
