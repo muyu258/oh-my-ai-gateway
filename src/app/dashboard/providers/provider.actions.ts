@@ -14,6 +14,7 @@ import {
 } from "#/lib/database/provider.repository";
 import { discoverProviderModels, testProviderProtocol } from "#/lib/provider/provider-discovery";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
+import { multiplierSchema, pricingOverridesSchema } from "#/lib/pricing/pricing.types";
 import type {
   ProviderActionResult,
   ProviderConnectionResult,
@@ -48,9 +49,19 @@ const providerSchema = z.object({
   baseUrl: z.union([z.literal(""), z.url("Enter a valid base URL.")]),
   providerToken: z.string(),
   enabled: z.boolean(),
+  costMultiplier: multiplierSchema,
+  pricingOverrides: pricingOverridesSchema,
 });
 
-const normalizeInput = (input: ProviderFormInput): ProviderFormInput => {
+const parsePricingOverrides = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error("Pricing overrides must be valid JSON.");
+  }
+};
+
+const normalizeInput = (input: ProviderFormInput) => {
   const models = [...new Set(input.models.map((model) => model.trim()).filter(Boolean))].sort(
     (left, right) => left.localeCompare(right),
   );
@@ -70,6 +81,8 @@ const normalizeInput = (input: ProviderFormInput): ProviderFormInput => {
     websiteUrl: input.websiteUrl.trim(),
     baseUrl: input.baseUrl.trim(),
     providerToken: input.providerToken.trim(),
+    costMultiplier: input.costMultiplier.trim(),
+    pricingOverrides: parsePricingOverrides(input.pricingOverrides),
   };
 };
 
@@ -80,6 +93,10 @@ const errorResult = (error: unknown): ProviderActionResult => {
 
   if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
     return { ok: false, error: "A provider with this name already exists." };
+  }
+
+  if (error instanceof Error && error.message === "Pricing overrides must be valid JSON.") {
+    return { ok: false, error: error.message };
   }
 
   console.error("Provider configuration update failed", error);
@@ -123,6 +140,8 @@ export const updateProviderAction = async (
       baseUrl: parsed.baseUrl || null,
       token: parsed.providerToken || undefined,
       enabled: parsed.enabled,
+      costMultiplier: parsed.costMultiplier,
+      pricingOverrides: parsed.pricingOverrides,
     });
     revalidatePath("/dashboard/providers");
     return { ok: true };

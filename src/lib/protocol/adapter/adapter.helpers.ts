@@ -40,8 +40,8 @@ export const withHeaders = (request: Request, headersToSet: Record<string, strin
 };
 
 export const emptyUsage = (): ParsedUsage => ({
-  inputTokens: 0,
-  outputTokens: 0,
-  cacheCreationInputTokens: 0,
-  cacheReadInputTokens: 0,
+  inputTokens: null,
+  outputTokens: null,
+  cacheCreationInputTokens: null,
+  cacheReadInputTokens: null,
 });

@@ -1,6 +1,7 @@
 import { merge } from "es-toolkit";
 
 import type { NewUsage } from "#/lib/database/drizzle/schema";
+import { calculateCost } from "#/lib/pricing/calculate-cost";
 import { emptyUsage } from "../protocol/adapter/adapter.helpers";
 import type { ParsedUsage, ProtocolAdapter } from "../protocol/adapter/adapter.types";
 import type { Provider } from "../provider/provider.types";
@@ -25,12 +26,13 @@ export const processUsageTracking = async (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
+  model: string,
   timing: { startedAt: Date; timeToFirstByteMs: number },
   persistUsage: (record: NewUsage) => Promise<void>,
 ): Promise<void> => {
   const id = crypto.randomUUID();
   const isStream = isStreamingResponse(response);
-  const { getModel, parseStreamingResponse, parseJsonResponse, protocolType } = adapter;
+  const { parseStreamingResponse, parseJsonResponse, protocolType } = adapter;
 
   let usage: ParsedUsage = emptyUsage();
   let error: unknown;
@@ -47,11 +49,19 @@ export const processUsageTracking = async (
     error = parseError;
   }
 
+  let cost: Pick<NewUsage, "costMicros" | "costStatus" | "costSnapshot">;
+  try {
+    cost = calculateCost(model, provider, usage);
+  } catch (costError) {
+    console.error(`Failed to calculate usage cost for provider '${provider.name}'`, costError);
+    cost = { costMicros: null, costStatus: "error", costSnapshot: undefined };
+  }
+
   const record = merge(
     {
       id,
       name: provider.name,
-      model: await getModel(request.clone()),
+      model,
       client: getClient(request),
       protocolType,
       status: response.status,
@@ -60,6 +70,7 @@ export const processUsageTracking = async (
       startAt: timing.startedAt,
       timeToFirstByteMs: timing.timeToFirstByteMs,
       endAt: new Date(),
+      ...cost,
     },
     usage,
   );

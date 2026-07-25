@@ -13,10 +13,10 @@ export type TransformerParams = {
 };
 
 export type ParsedUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationInputTokens: number;
-  cacheReadInputTokens: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheCreationInputTokens: number | null;
+  cacheReadInputTokens: number | null;
 };
 
 /* ================================================================================ */

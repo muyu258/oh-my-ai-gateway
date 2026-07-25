@@ -6,7 +6,17 @@ import { protocolRegistry } from "../../protocol.registry";
 import { appendEndpoint, withHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
-import { defaultTo } from "es-toolkit/compat";
+import { emptyUsage } from "../adapter.helpers";
+
+const parseUsage = (usage: Record<string, any> | undefined) => {
+  if (!usage) return emptyUsage();
+  return {
+    inputTokens: usage.input_tokens ?? null,
+    outputTokens: usage.output_tokens ?? null,
+    cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+    cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+  };
+};
 
 const defaultEndpoint = protocolRegistry[ProtocolType.Anthropic].defaultEndpoint;
 const defaultBaseUrl = "https://api.anthropic.com";
@@ -46,49 +56,22 @@ export const anthropicAdapter: ProtocolAdapter = {
   },
 
   parseStreamingResponse: async (response) => {
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let cacheCreationInputTokens = 0;
-    let cacheReadInputTokens = 0;
+    let parsedUsage = emptyUsage();
 
     await consumeJsonEventStream(response, (data) => {
       if (data.type === "error") throw data.error ?? data;
       if (data.type === "message_start" && data.message?.usage) {
-        inputTokens = defaultTo(data.message.usage.input_tokens, 0);
-        cacheCreationInputTokens = defaultTo(data.message.usage.cache_creation_input_tokens, 0);
-        cacheReadInputTokens = defaultTo(data.message.usage.cache_read_input_tokens, 0);
+        parsedUsage = parseUsage(data.message.usage);
       } else if (data.type === "message_delta" && data.usage) {
-        outputTokens = defaultTo(data.usage.output_tokens, 0);
+        parsedUsage.outputTokens = data.usage.output_tokens ?? null;
       }
     });
 
-    return {
-      inputTokens,
-      outputTokens,
-      cacheCreationInputTokens,
-      cacheReadInputTokens,
-    };
+    return parsedUsage;
   },
   parseJsonResponse: async (response) => {
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let cacheCreationInputTokens = 0;
-    let cacheReadInputTokens = 0;
     const data = await response.json();
-
-    if (data.usage) {
-      inputTokens = defaultTo(data.usage.input_tokens, 0);
-      outputTokens = defaultTo(data.usage.output_tokens, 0);
-      cacheCreationInputTokens = defaultTo(data.usage.cache_creation_input_tokens, 0);
-      cacheReadInputTokens = defaultTo(data.usage.cache_read_input_tokens, 0);
-    }
-
-    return {
-      inputTokens,
-      outputTokens,
-      cacheCreationInputTokens,
-      cacheReadInputTokens,
-    };
+    return parseUsage(data.usage);
   },
   createModelsResponse: (providers) => {
     const models = collectModels(providers);

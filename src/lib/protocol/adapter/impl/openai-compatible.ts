@@ -1,11 +1,23 @@
 import { invariant } from "es-toolkit";
-import { defaultTo } from "es-toolkit/compat";
 import { ProtocolType } from "../../protocol.types";
 import { protocolRegistry } from "../../protocol.registry";
 import { appendEndpoint, withHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { createErrorResponse, createModelsResponse } from "./shared/openai.helpers";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
+import { emptyUsage } from "../adapter.helpers";
+
+const parseUsage = (usage: Record<string, any> | undefined) => {
+  if (!usage) return emptyUsage();
+  const totalInput = usage.prompt_tokens ?? null;
+  const cacheReadInputTokens = usage.prompt_tokens_details?.cached_tokens ?? 0;
+  return {
+    inputTokens: totalInput === null ? null : Math.max(0, totalInput - cacheReadInputTokens),
+    outputTokens: usage.completion_tokens ?? null,
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens,
+  };
+};
 
 const defaultEndpoint = protocolRegistry[ProtocolType.OpenaiCompatible].defaultEndpoint;
 const defaultBaseUrl = "https://api.openai.com";
@@ -37,45 +49,21 @@ export const openaiCompatibleAdapter: ProtocolAdapter = {
   },
 
   parseStreamingResponse: async (response) => {
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let cacheReadInputTokens = 0;
+    let parsedUsage = emptyUsage();
 
     await consumeJsonEventStream(response, (data) => {
       if (data.error || data.object === "error") throw data.error ?? data;
 
       if (data.usage) {
-        inputTokens = defaultTo(data.usage.prompt_tokens, 0);
-        outputTokens = defaultTo(data.usage.completion_tokens, 0);
-        cacheReadInputTokens = defaultTo(data.usage.prompt_tokens_details?.cached_tokens, 0);
+        parsedUsage = parseUsage(data.usage);
       }
     });
 
-    return {
-      inputTokens,
-      outputTokens,
-      cacheCreationInputTokens: 0,
-      cacheReadInputTokens,
-    };
+    return parsedUsage;
   },
   parseJsonResponse: async (response) => {
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let cacheReadInputTokens = 0;
     const data = await response.json();
-
-    if (data.usage) {
-      inputTokens = defaultTo(data.usage.prompt_tokens, 0);
-      outputTokens = defaultTo(data.usage.completion_tokens, 0);
-      cacheReadInputTokens = defaultTo(data.usage.prompt_tokens_details?.cached_tokens, 0);
-    }
-
-    return {
-      inputTokens,
-      outputTokens,
-      cacheCreationInputTokens: 0,
-      cacheReadInputTokens,
-    };
+    return parseUsage(data.usage);
   },
   createModelsResponse,
   createErrorResponse,

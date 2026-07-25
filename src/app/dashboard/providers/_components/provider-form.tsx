@@ -91,6 +91,30 @@ export function ProviderForm({
           </div>
         </FormSectionCard>
 
+        <FormSectionCard title="Cost pricing">
+          <div className="grid gap-5">
+            <FloatingInput
+              label="Cost multiplier"
+              required
+              inputMode="decimal"
+              value={form.costMultiplier}
+              onChange={(event) => setForm({ ...form, costMultiplier: event.target.value })}
+              placeholder="1"
+              inputClassName="font-mono"
+            />
+            <label className="grid gap-2 text-sm font-medium text-[#344054]">
+              Pricing overrides
+              <textarea
+                value={form.pricingOverrides}
+                onChange={(event) => setForm({ ...form, pricingOverrides: event.target.value })}
+                spellCheck={false}
+                rows={10}
+                className="min-h-44 w-full resize-y rounded-md border border-[#d0d5dd] bg-white px-3 py-2.5 font-mono text-xs leading-5 text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.05)] outline-none transition focus:border-[#7dd3fc] focus:ring-2 focus:ring-[#bae6fd]"
+              />
+            </label>
+          </div>
+        </FormSectionCard>
+
         <FormSectionCard
           title="Models"
           action={

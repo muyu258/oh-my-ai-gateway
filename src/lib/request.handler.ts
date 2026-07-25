@@ -46,7 +46,7 @@ export const requestHandler = async ({
     const timeToFirstByteMs = Math.max(0, Math.round(performance.now() - providerRequestStartedAt));
     const trackingResponse = upstreamResponse.clone();
 
-    track(trackingRequest, trackingResponse, adapter, provider, {
+    track(trackingRequest, trackingResponse, adapter, provider, model, {
       startedAt,
       timeToFirstByteMs,
     });

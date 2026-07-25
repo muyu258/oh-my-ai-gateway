@@ -46,6 +46,15 @@ const formatNumber = (value: number): string => new Intl.NumberFormat("en-US").f
 const formatCompactNumber = (value: number): string =>
   new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
+const formatCost = (costMicros: number): string => {
+  const whole = Math.floor(costMicros / 1_000_000);
+  const fraction = String(costMicros % 1_000_000)
+    .padStart(6, "0")
+    .replace(/0+$/, "")
+    .padEnd(2, "0");
+  return `$${formatNumber(whole)}.${fraction}`;
+};
+
 const formatDate = (date: Date): { date: string; time: string } => ({
   date: new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -77,10 +86,24 @@ const getStatus = (status: number | null) => {
 };
 
 const getCachedInputPercentage = (record: Usage): number | null => {
-  const inputTokens = record.inputTokens ?? 0;
+  const inputTokens =
+    (record.inputTokens ?? 0) +
+    (record.cacheCreationInputTokens ?? 0) +
+    (record.cacheReadInputTokens ?? 0);
   const cacheReadInputTokens = record.cacheReadInputTokens ?? 0;
   if (!inputTokens || !cacheReadInputTokens) return null;
   return Math.min(100, Math.round((cacheReadInputTokens / inputTokens) * 100));
+};
+
+const getTotalInputTokens = (record: Usage): number | null => {
+  const components = [
+    record.inputTokens,
+    record.cacheCreationInputTokens,
+    record.cacheReadInputTokens,
+  ];
+  return components.some((value) => value !== null)
+    ? components.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+    : null;
 };
 
 const getDuration = (record: Usage): number | null =>
@@ -100,8 +123,9 @@ const UsageTableColumns = () => (
     <col className="w-[12%]" />
     <col className="w-[26%]" />
     <col className="w-[12%]" />
-    <col className="w-[12%]" />
-    <col className="w-[12%]" />
+    <col className="w-[10%]" />
+    <col className="w-[10%]" />
+    <col className="w-[10%]" />
     <col className="w-[12%]" />
   </colgroup>
 );
@@ -239,6 +263,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                 <TableFilter label="Client" parameter="client" placeholder="Enter client name" />
               </DataTableHead>
               <DataTableHead>Tokens</DataTableHead>
+              <DataTableHead>Cost</DataTableHead>
               <DataTableHead>Duration</DataTableHead>
               <DataTableHead pinned="right">
                 <TableFilter
@@ -266,6 +291,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
               const timestamp = formatDate(record.startAt);
               const statusInfo = getStatus(record.status);
               const cachedInputPercentage = getCachedInputPercentage(record);
+              const totalInputTokens = getTotalInputTokens(record);
 
               return (
                 <UsageRecordRow
@@ -342,7 +368,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                             <span className="sr-only">Input tokens</span>
                           </span>
                           <span className="font-medium text-[#344054]">
-                            {formatCompactNumber(record.inputTokens ?? 0)}
+                            {formatCompactNumber(totalInputTokens ?? 0)}
                             {cachedInputPercentage !== null ? (
                               <span
                                 className="ml-1 text-[#248a3d]"
@@ -353,6 +379,21 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                             ) : null}
                           </span>
                         </div>
+                      </div>
+                    ) : (
+                      <span className="text-[#98a2b3]">—</span>
+                    )}
+                  </DataTableCell>
+                  <DataTableCell className="whitespace-nowrap">
+                    {record.costMicros !== null &&
+                    (record.costStatus === "complete" || record.costStatus === "partial") ? (
+                      <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
+                        {formatCost(record.costMicros)}
+                        {record.costStatus === "partial" ? (
+                          <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
+                            Partial
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
                       <span className="text-[#98a2b3]">—</span>
@@ -387,7 +428,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
             })
           ) : (
             <DataTableEmptyState
-              colSpan={7}
+              colSpan={8}
               icon={<Database className="size-5" strokeWidth={1.8} aria-hidden="true" />}
               title="No usage records found"
               description={

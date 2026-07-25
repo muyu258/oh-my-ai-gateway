@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { ProtocolType } from "#/lib/protocol/protocol.types";
+import type { CostSnapshot, CostStatus } from "#/lib/pricing/calculate-cost";
+import type { PricingOverrides } from "#/lib/pricing/pricing.types";
 
 export const usage = sqliteTable("usage", {
   id: text("id")
@@ -18,6 +20,9 @@ export const usage = sqliteTable("usage", {
   outputTokens: integer("output_tokens"),
   cacheCreationInputTokens: integer("cache_creation_input_tokens"),
   cacheReadInputTokens: integer("cache_read_input_tokens"),
+  costMicros: integer("cost_micros"),
+  costStatus: text("cost_status").$type<CostStatus>(),
+  costSnapshot: text("cost_snapshot", { mode: "json" }).$type<CostSnapshot>(),
   startAt: integer("start_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -49,6 +54,11 @@ export const provider = sqliteTable("provider", {
   baseUrl: text("base_url"),
   token: text("token").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  costMultiplier: text("cost_multiplier").notNull().default("1"),
+  pricingOverrides: text("pricing_overrides", { mode: "json" })
+    .$type<PricingOverrides>()
+    .notNull()
+    .default({}),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

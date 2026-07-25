@@ -10,6 +10,7 @@ export const track = (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
+  model: string,
   timing: { startedAt: Date; timeToFirstByteMs: number },
 ): void => {
   const trackingPromise = processUsageTracking(
@@ -17,6 +18,7 @@ export const track = (
     response,
     adapter,
     provider,
+    model,
     timing,
     saveUsage,
   ).catch((error) => {

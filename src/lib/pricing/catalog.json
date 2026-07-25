@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2026-07-26",
+  "currency": "USD",
+  "unitTokens": 1000000,
+  "fallbackModel": "gpt-5.6-sol",
+  "models": {
+    "gpt-5.6-sol": {
+      "rates": {
+        "input": "5",
+        "output": "30",
+        "cacheRead": "0.5",
+        "cacheWrite": "6.25"
+      },
+      "tiers": [
+        {
+          "inputTokensAbove": 272000,
+          "rates": {
+            "input": "10",
+            "output": "45",
+            "cacheRead": "1",
+            "cacheWrite": "12.5"
+          }
+        }
+      ]
+    }
+  }
+}

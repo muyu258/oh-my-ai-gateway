@@ -13,6 +13,8 @@ export const emptyProviderForm: ProviderFormInput = {
   websiteUrl: "",
   baseUrl: "",
   providerToken: "",
+  costMultiplier: "1",
+  pricingOverrides: "{}",
   enabled: true,
 };
 
@@ -26,6 +28,8 @@ export const createProviderForm = (provider?: ProviderSummary): ProviderFormInpu
         websiteUrl: provider.websiteUrl ?? "",
         baseUrl: provider.baseUrl ?? "",
         providerToken: "",
+        costMultiplier: provider.costMultiplier,
+        pricingOverrides: JSON.stringify(provider.pricingOverrides, null, 2),
         enabled: provider.enabled,
       }
     : emptyProviderForm;

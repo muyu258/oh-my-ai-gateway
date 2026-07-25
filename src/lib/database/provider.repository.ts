@@ -46,7 +46,16 @@ export const refreshProviders = async (): Promise<Provider[]> => {
 
 export type ProviderSummary = Pick<
   ProviderRecord,
-  "name" | "models" | "testModel" | "protocols" | "websiteUrl" | "baseUrl" | "enabled" | "updatedAt"
+  | "name"
+  | "models"
+  | "testModel"
+  | "protocols"
+  | "websiteUrl"
+  | "baseUrl"
+  | "enabled"
+  | "costMultiplier"
+  | "pricingOverrides"
+  | "updatedAt"
 > & {
   averageResponseTimeMs: number | null;
 };
@@ -75,7 +84,18 @@ export const getProviderSummaries = async (
   );
 
   return providerRecords.map((record) => {
-    const { name, models, testModel, protocols, websiteUrl, baseUrl, enabled, updatedAt } = record;
+    const {
+      name,
+      models,
+      testModel,
+      protocols,
+      websiteUrl,
+      baseUrl,
+      enabled,
+      costMultiplier,
+      pricingOverrides,
+      updatedAt,
+    } = record;
     return {
       name,
       models,
@@ -84,6 +104,8 @@ export const getProviderSummaries = async (
       websiteUrl,
       baseUrl,
       enabled,
+      costMultiplier,
+      pricingOverrides,
       updatedAt,
       averageResponseTimeMs: averageByProvider.get(name) ?? null,
     };

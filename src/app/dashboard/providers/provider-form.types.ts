@@ -8,6 +8,8 @@ export type ProviderFormInput = Pick<
   websiteUrl: NonNullable<ProviderRecord["websiteUrl"]>;
   baseUrl: NonNullable<ProviderRecord["baseUrl"]>;
   providerToken: ProviderRecord["token"];
+  costMultiplier: ProviderRecord["costMultiplier"];
+  pricingOverrides: string;
 };
 
 export type ProviderActionResult =

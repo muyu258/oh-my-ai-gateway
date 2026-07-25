@@ -43,6 +43,8 @@ const provider: Provider = {
   baseUrl: null,
   token: "secret",
   enabled: true,
+  costMultiplier: "1",
+  pricingOverrides: {},
   createdAt: new Date(0),
   updatedAt: new Date(0),
 };
@@ -65,6 +67,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
+      "test-model",
       { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
@@ -96,6 +99,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
+      "test-model",
       { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
@@ -103,6 +107,7 @@ describe("processUsageTracking", () => {
     const record = persistUsage.mock.calls[0]?.[0];
     expect(persistUsage).toHaveBeenCalledTimes(1);
     expect(record?.error).toEqual({ error: { type: "rate_limit", message: "Slow down" } });
+    expect(record).toMatchObject({ costMicros: null, costStatus: "unavailable" });
     expect(record).not.toHaveProperty("requestBody");
     expect(record).not.toHaveProperty("responseBody");
     expect(trackingResponse.bodyUsed).toBe(false);
@@ -119,6 +124,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
+      "test-model",
       { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
@@ -126,5 +132,55 @@ describe("processUsageTracking", () => {
     expect(persistUsage).toHaveBeenCalledTimes(1);
     expect(persistUsage.mock.calls[0]?.[0]).toMatchObject({ isStream: true, ...parsedUsage });
     expect(trackingResponse.bodyUsed).toBe(false);
+  });
+
+  test("persists known usage when cost calculation fails", async () => {
+    const persistUsage = mock(async (_record: NewUsage) => {});
+    const invalidPricingProvider = { ...provider, costMultiplier: "invalid" };
+
+    await processUsageTracking(
+      request(),
+      Response.json({ ok: true }),
+      adapter,
+      invalidPricingProvider,
+      "test-model",
+      { startedAt: new Date(100), timeToFirstByteMs: 42 },
+      persistUsage,
+    );
+
+    expect(persistUsage.mock.calls[0]?.[0]).toMatchObject({
+      ...parsedUsage,
+      costMicros: null,
+      costStatus: "error",
+    });
+  });
+
+  test("persists unavailable usage when response parsing fails", async () => {
+    const persistUsage = mock(async (_record: NewUsage) => {});
+    const failingAdapter: ProtocolAdapter = {
+      ...adapter,
+      parseJsonResponse: async () => {
+        throw new Error("Invalid upstream JSON");
+      },
+    };
+
+    await processUsageTracking(
+      request(),
+      Response.json({ ok: true }),
+      failingAdapter,
+      provider,
+      "test-model",
+      { startedAt: new Date(100), timeToFirstByteMs: 42 },
+      persistUsage,
+    );
+
+    expect(persistUsage.mock.calls[0]?.[0]).toMatchObject({
+      inputTokens: null,
+      outputTokens: null,
+      cacheCreationInputTokens: null,
+      cacheReadInputTokens: null,
+      costMicros: null,
+      costStatus: "unavailable",
+    });
   });
 });

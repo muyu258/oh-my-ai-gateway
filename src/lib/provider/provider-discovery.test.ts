@@ -19,6 +19,8 @@ const provider: Provider = {
   baseUrl: "https://provider.example/api",
   token: "provider-secret",
   enabled: true,
+  costMultiplier: "1",
+  pricingOverrides: {},
   createdAt: new Date(0),
   updatedAt: new Date(0),
 };

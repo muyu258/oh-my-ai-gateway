@@ -22,6 +22,9 @@ describe("provider statistics", () => {
         output_tokens integer,
         cache_creation_input_tokens integer,
         cache_read_input_tokens integer,
+        cost_micros integer,
+        cost_status text,
+        cost_snapshot text,
         start_at integer NOT NULL,
         time_to_first_byte_ms integer,
         end_at integer
