@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+import { ProtocolType } from "#/lib/protocol/protocol.types";
 import { AnthropicIcon } from "./anthropic-icon";
 import { OpenaiCompatibleIcon } from "./openai-compatible-icon";
 import { OpenaiResponseIcon } from "./openai-response-icon";

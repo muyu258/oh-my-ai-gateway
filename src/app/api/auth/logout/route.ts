@@ -1,4 +1,4 @@
-import { AUTH_COOKIE_NAME } from "#/auth/auth";
+import { AUTH_COOKIE_NAME } from "#/lib/auth/auth";
 import { NextResponse } from "next/server";
 
 export const POST = (request: Request): NextResponse => {

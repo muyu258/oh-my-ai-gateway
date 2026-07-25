@@ -3,10 +3,10 @@
 import JsonView from "@uiw/react-json-view";
 import { vscodeTheme } from "@uiw/react-json-view/vscode";
 
-export function JsonViewer({ value, className }: { value: object; className?: string }) {
+export function JsonViewer({ value, className }: { value: unknown; className?: string }) {
   return (
     <JsonView
-      value={value}
+      value={value as object}
       collapsed={2}
       displayDataTypes={false}
       enableClipboard={false}

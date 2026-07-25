@@ -1,4 +1,4 @@
-import { getConfiguredGatewayToken } from "#/auth/auth";
+import { getConfiguredGatewayToken } from "#/lib/auth/auth";
 import "@scalar/api-reference-react/style.css";
 
 import { ApiReferenceReact } from "@scalar/api-reference-react";

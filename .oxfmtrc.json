@@ -12,7 +12,7 @@
     ".next/**",
     "out/**",
     "build/**",
-    "src/infra/database/drizzle/migrations/**",
+    "src/lib/database/drizzle/migrations/**",
     "next-env.d.ts"
   ]
 }

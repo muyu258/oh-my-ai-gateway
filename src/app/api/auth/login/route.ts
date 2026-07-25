@@ -1,4 +1,4 @@
-import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/auth/auth";
+import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/lib/auth/auth";
 import { NextResponse } from "next/server";
 
 export const POST = async (request: Request): Promise<NextResponse> => {

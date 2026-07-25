@@ -4,19 +4,16 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { getConfiguredGatewayToken } from "#/auth/auth";
+import { getConfiguredGatewayToken } from "#/lib/auth/auth";
 import {
   createProvider,
   deleteProvider,
   getProvider,
   setProviderEnabled,
   updateProvider,
-} from "#/infra/database/provider.repository";
-import {
-  discoverProviderModels,
-  testProviderProtocol,
-} from "#/infra/gateway/provider/provider-discovery";
-import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+} from "#/lib/database/provider.repository";
+import { discoverProviderModels, testProviderProtocol } from "#/lib/provider/provider-discovery";
+import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type {
   ProviderActionResult,
   ProviderConnectionResult,

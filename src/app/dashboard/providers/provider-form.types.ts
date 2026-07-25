@@ -1,4 +1,4 @@
-import type { ProviderRecord } from "#/infra/database/drizzle/schema";
+import type { ProviderRecord } from "#/lib/database/drizzle/schema";
 
 export type ProviderFormInput = Pick<
   ProviderRecord,

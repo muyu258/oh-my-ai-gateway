@@ -1,4 +1,4 @@
-import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/auth/auth";
+import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/lib/auth/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 const isPublicPath = (pathname: string): boolean =>

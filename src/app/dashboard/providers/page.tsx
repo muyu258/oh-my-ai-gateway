@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   getProviderSummaries,
   type ProviderResponseTimePeriod,
-} from "#/infra/database/provider.repository";
+} from "#/lib/database/provider.repository";
 import { ProvidersView } from "./_components/providers-view";
 
 export const metadata: Metadata = {

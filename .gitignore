@@ -35,7 +35,7 @@ yarn-error.log*
 !.env.example
 
 # local gateway provider credentials
-/src/gateway/provider/providers.json
+/src/lib/provider/providers.json
 
 # vercel
 .vercel

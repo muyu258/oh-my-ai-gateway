@@ -25,12 +25,12 @@ import { DataTablePanel } from "#/components/data-table-panel";
 import { isProtocolType, ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
 import {
-  getRequestRecords,
-  type RequestRecordPeriodFilter,
-  type RequestRecordStatusFilter,
-  type RequestRecordStreamFilter,
-} from "#/infra/database/request-record.repository";
-import type { RequestRecord } from "#/infra/database/drizzle/schema";
+  getUsages,
+  type UsagePeriodFilter,
+  type UsageStatusFilter,
+  type UsageStreamFilter,
+} from "#/lib/database/usage.repository";
+import type { Usage } from "#/lib/database/drizzle/schema";
 
 export const metadata: Metadata = {
   title: "Usage | Oh My AI Gateway",
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
-const statusFilters = new Set<RequestRecordStatusFilter>(["all", "success", "error"]);
-const periodFilters = new Set<RequestRecordPeriodFilter>(["24h", "7d", "30d", "all"]);
-const streamFilters = new Set<RequestRecordStreamFilter>(["all", "stream", "nonStream"]);
+const statusFilters = new Set<UsageStatusFilter>(["all", "success", "error"]);
+const periodFilters = new Set<UsagePeriodFilter>(["24h", "7d", "30d", "all"]);
+const streamFilters = new Set<UsageStreamFilter>(["all", "stream", "nonStream"]);
 const protocolFilters = new Set(["anthropic", "openaiCompatible", "openaiResponse"]);
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -75,24 +75,23 @@ const formatDuration = (milliseconds: number | null): string => {
   return `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
 };
 
-const getStatus = (status: string | null) => {
-  const code = Number(status);
-  const successful = Number.isFinite(code) && code >= 200 && code < 400;
+const getStatus = (status: number | null) => {
+  const successful = status !== null && status >= 200 && status < 400;
 
   return {
-    label: status ?? "Unknown",
+    label: status?.toString() ?? "Unknown",
     successful,
   };
 };
 
-const getCachedInputPercentage = (record: RequestRecord): number | null => {
+const getCachedInputPercentage = (record: Usage): number | null => {
   const inputTokens = record.inputTokens ?? 0;
   const cacheReadInputTokens = record.cacheReadInputTokens ?? 0;
   if (!inputTokens || !cacheReadInputTokens) return null;
   return Math.min(100, Math.round((cacheReadInputTokens / inputTokens) * 100));
 };
 
-const getDuration = (record: RequestRecord): number | null =>
+const getDuration = (record: Usage): number | null =>
   record.endAt ? record.endAt.getTime() - record.startAt.getTime() : null;
 
 const pageHref = (params: URLSearchParams, page: number): string => {
@@ -105,13 +104,13 @@ const pageHref = (params: URLSearchParams, page: number): string => {
 
 const UsageTableColumns = () => (
   <colgroup>
-    <col className="w-[15%]" />
+    <col className="w-[14%]" />
     <col className="w-[12%]" />
-    <col className="w-[29%]" />
+    <col className="w-[26%]" />
     <col className="w-[12%]" />
     <col className="w-[12%]" />
     <col className="w-[12%]" />
-    <col className="w-[8%]" />
+    <col className="w-[12%]" />
   </colgroup>
 );
 
@@ -122,22 +121,16 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
   const requestedProtocol = firstValue(resolvedSearchParams.protocolType);
   const protocolType =
     requestedProtocol && protocolFilters.has(requestedProtocol) ? requestedProtocol : "";
-  const requestedStatus = firstValue(resolvedSearchParams.status) as
-    | RequestRecordStatusFilter
-    | undefined;
-  const requestedPeriod = firstValue(resolvedSearchParams.period) as
-    | RequestRecordPeriodFilter
-    | undefined;
-  const requestedStream = firstValue(resolvedSearchParams.stream) as
-    | RequestRecordStreamFilter
-    | undefined;
+  const requestedStatus = firstValue(resolvedSearchParams.status) as UsageStatusFilter | undefined;
+  const requestedPeriod = firstValue(resolvedSearchParams.period) as UsagePeriodFilter | undefined;
+  const requestedStream = firstValue(resolvedSearchParams.stream) as UsageStreamFilter | undefined;
   const status = requestedStatus && statusFilters.has(requestedStatus) ? requestedStatus : "all";
   const period = requestedPeriod && periodFilters.has(requestedPeriod) ? requestedPeriod : "7d";
   const stream = requestedStream && streamFilters.has(requestedStream) ? requestedStream : "all";
   const requestedPage = Number.parseInt(firstValue(resolvedSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const { records, total } = await getRequestRecords({
+  const { records, total } = await getUsages({
     filters: { model, client, protocolType, stream, status, period },
     page,
     pageSize: PAGE_SIZE,
@@ -284,12 +277,14 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
               const timestamp = formatDate(record.startAt);
               const statusInfo = getStatus(record.status);
               const cachedInputPercentage = getCachedInputPercentage(record);
+              const { hasContent: _hasContent, ...usageRecord } = record;
 
               return (
                 <UsageRecordRow
                   key={record.id}
                   recordId={record.id}
-                  recordJson={JSON.stringify(record, null, 2)}
+                  recordJson={JSON.stringify(usageRecord, null, 2)}
+                  hasContent={record.hasContent}
                 >
                   <DataTableCell>
                     <p
@@ -388,15 +383,17 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                     ) : null}
                   </DataTableCell>
                   <DataTableCell pinned="right">
-                    <span
-                      className={
-                        statusInfo.successful
-                          ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
-                          : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
-                      }
-                    >
-                      {statusInfo.label}
-                    </span>
+                    <div className="flex items-center justify-center gap-1">
+                      <span
+                        className={
+                          statusInfo.successful
+                            ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
+                            : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
+                        }
+                      >
+                        {statusInfo.label}
+                      </span>
+                    </div>
                   </DataTableCell>
                 </UsageRecordRow>
               );

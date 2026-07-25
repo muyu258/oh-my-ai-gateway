@@ -2,7 +2,6 @@
 
 import {
   Check,
-  CheckCircle2,
   ChevronDown,
   Download,
   ExternalLink,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { ProtocolIcon } from "#/components/icons/protocol";
 import {
@@ -33,12 +33,11 @@ import { FloatingInput } from "#/components/floating-input";
 import { FormSectionCard } from "#/components/form-section-card";
 import { Modal } from "#/components/modal";
 import { TableFilter } from "#/components/table-filter";
-import { Toast, type ToastMessage } from "#/components/toast";
 import type {
   ProviderResponseTimePeriod,
   ProviderSummary,
-} from "#/infra/database/provider.repository";
-import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+} from "#/lib/database/provider.repository";
+import { ProtocolType } from "#/lib/protocol/protocol.types";
 import {
   createProviderAction,
   deleteProviderAction,
@@ -142,9 +141,6 @@ function ProviderDialog({
     protocol: ProtocolType;
     type: "test" | "models";
   } | null>(null);
-  const [connectionResults, setConnectionResults] = useState<
-    Partial<Record<ProtocolType, { ok: boolean; message: string }>>
-  >({});
   const [modelDiff, setModelDiff] = useState<{
     protocol: ProtocolType;
     models: string[];
@@ -201,12 +197,13 @@ function ProviderDialog({
       if (type === "test") {
         const result = await testProviderProtocolAction(savedName, protocol);
         setActiveProtocolAction(null);
-        setConnectionResults((current) => ({
-          ...current,
-          [protocol]: result.ok
-            ? { ok: true, message: `${result.latencyMs} ms · ${result.model}` }
-            : { ok: false, message: result.error },
-        }));
+        if (result.ok) {
+          toast.success("Connection successful", {
+            description: `${savedName} responded with ${result.model} in ${result.latencyMs} ms.`,
+          });
+        } else {
+          toast.error("Connection failed", { description: result.error });
+        }
         return;
       }
 
@@ -423,7 +420,6 @@ function ProviderDialog({
                   const checked = protocolConfig?.enabled ?? false;
                   const expanded = checked && expandedProtocol === option.value;
                   const actionPending = activeProtocolAction?.protocol === option.value && pending;
-                  const connectionResult = connectionResults[option.value];
                   const toggleProtocol = () => {
                     setForm({
                       ...form,
@@ -467,20 +463,6 @@ function ProviderDialog({
                         <span className="pointer-events-none relative truncate text-sm font-medium text-[#344054]">
                           {option.label}
                         </span>
-
-                        {connectionResult && !expanded ? (
-                          <span
-                            title={connectionResult.message}
-                            className={`pointer-events-none relative hidden max-w-40 items-center gap-1 truncate text-xs lg:inline-flex ${connectionResult.ok ? "text-[#027a48]" : "text-[#b42318]"}`}
-                          >
-                            {connectionResult.ok ? (
-                              <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
-                            ) : (
-                              <X className="size-3.5 shrink-0" aria-hidden="true" />
-                            )}
-                            <span className="truncate">{connectionResult.message}</span>
-                          </span>
-                        ) : null}
 
                         <div className="relative ml-auto flex items-center gap-1.5">
                           <button
@@ -556,21 +538,6 @@ function ProviderDialog({
                               placeholder={option.defaultEndpoint}
                               inputClassName="font-mono text-xs"
                             />
-                            {connectionResult ? (
-                              <p
-                                className={`mt-2 flex items-start gap-1.5 text-xs ${connectionResult.ok ? "text-[#027a48]" : "text-[#b42318]"}`}
-                              >
-                                {connectionResult.ok ? (
-                                  <CheckCircle2
-                                    className="mt-0.5 size-3.5 shrink-0"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <X className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                                )}
-                                <span>{connectionResult.message}</span>
-                              </p>
-                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -818,7 +785,6 @@ export function ProvidersView({
   const [deleting, setDeleting] = useState<ProviderSummary | null>(null);
   const [actionError, setActionError] = useState("");
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const filteredProviders = useMemo(() => {
     const normalizedQuery = (searchParams.get("query") ?? "").trim().toLowerCase();
@@ -843,10 +809,7 @@ export function ProvidersView({
   const test = (provider: ProviderSummary) => {
     const protocol = protocolOptions.find(({ value }) => provider.protocols[value]?.enabled)?.value;
     if (!protocol) {
-      setToast({
-        id: Date.now(),
-        type: "error",
-        title: "Test failed",
+      toast.error("Test failed", {
         description: `${provider.name} has no enabled protocol.`,
       });
       return;
@@ -856,21 +819,13 @@ export function ProvidersView({
     startTransition(async () => {
       const result = await testProviderProtocolAction(provider.name, protocol);
       setTestingProvider(null);
-      setToast(
-        result.ok
-          ? {
-              id: Date.now(),
-              type: "success",
-              title: "Connection successful",
-              description: `${provider.name} responded with ${result.model} in ${result.latencyMs} ms.`,
-            }
-          : {
-              id: Date.now(),
-              type: "error",
-              title: "Connection failed",
-              description: result.error,
-            },
-      );
+      if (result.ok) {
+        toast.success("Connection successful", {
+          description: `${provider.name} responded with ${result.model} in ${result.latencyMs} ms.`,
+        });
+      } else {
+        toast.error("Connection failed", { description: result.error });
+      }
       router.refresh();
     });
   };
@@ -1118,7 +1073,6 @@ export function ProvidersView({
         />
       ) : null}
       {deleting ? <DeleteDialog provider={deleting} onClose={() => setDeleting(null)} /> : null}
-      {toast ? <Toast message={toast} onClose={() => setToast(null)} /> : null}
     </div>
   );
 }

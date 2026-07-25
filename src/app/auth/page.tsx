@@ -1,4 +1,4 @@
-import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/auth/auth";
+import { AUTH_COOKIE_NAME, isValidGatewayToken } from "#/lib/auth/auth";
 import { FloatingInput } from "#/components/floating-input";
 import type { Metadata } from "next";
 import Image from "next/image";
