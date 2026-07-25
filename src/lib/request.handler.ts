@@ -18,6 +18,7 @@ export const requestHandler = async ({
 
   try {
     pipe(request, getToken, authByToken);
+    // Forwarding and usage parsing may consume bodies, so each path owns a separate stream branch.
     const trackingRequest = request.clone();
 
     const model = await getModel(request);

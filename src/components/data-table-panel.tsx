@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode, UIEvent } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const classes = (...values: Array<string | undefined>): string => values.filter(Boolean).join(" ");
+
+export const hasHorizontalScrollOffset = (scrollLeft: number): boolean => scrollLeft > 0;
 
 export function DataTablePanel({
   header,
@@ -19,16 +21,25 @@ export function DataTablePanel({
   className?: string;
 }) {
   const headerViewportRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   const syncHeader = (event: UIEvent<HTMLDivElement>) => {
+    const { scrollLeft } = event.currentTarget;
+    // Header and body are separate viewports so the header can stay fixed while rows scroll.
     if (headerViewportRef.current) {
-      headerViewportRef.current.scrollLeft = event.currentTarget.scrollLeft;
+      headerViewportRef.current.scrollLeft = scrollLeft;
     }
+    // The pinned divider only marks columns hidden beyond the left edge of the body viewport.
+    setScrolled(hasHorizontalScrollOffset(scrollLeft));
   };
 
   return (
     <section
-      className={classes("flex h-full min-h-0 w-full flex-col overflow-hidden bg-white", className)}
+      data-scrolled={scrolled || undefined}
+      className={classes(
+        "data-table-panel flex h-full min-h-0 w-full flex-col overflow-hidden bg-white",
+        className,
+      )}
     >
       <div
         ref={headerViewportRef}

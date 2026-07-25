@@ -58,6 +58,19 @@ body {
   background-color: rgb(0 0 0 / 20%);
 }
 
+.data-table-panel[data-scrolled="true"] .data-table-pinned-right {
+  box-shadow: -10px 0 16px -16px rgb(0 0 0 / 45%);
+}
+
+.data-table-panel[data-scrolled="true"] .data-table-pinned-boundary::after {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 1px;
+  background: #d1d1d6;
+  content: "";
+}
+
 @keyframes modal-backdrop-in {
   from {
     opacity: 0;

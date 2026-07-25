@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import { ProtocolType } from "#/lib/protocol/protocol.types";
+import { isProtocolType, protocolRegistry } from "#/lib/protocol/protocol.registry";
 import { AnthropicIcon } from "./anthropic-icon";
 import { OpenaiCompatibleIcon } from "./openai-compatible-icon";
 import { OpenaiResponseIcon } from "./openai-response-icon";
@@ -12,14 +13,13 @@ const protocolIcons: Record<ProtocolType, ComponentType<ProtocolBrandIconProps>>
   [ProtocolType.Anthropic]: AnthropicIcon,
 };
 
-export const protocolLabels: Record<ProtocolType, string> = {
-  [ProtocolType.OpenaiCompatible]: "OpenAI · Chat Completions",
-  [ProtocolType.OpenaiResponse]: "Codex · Responses",
-  [ProtocolType.Anthropic]: "Anthropic Messages",
-};
+export { isProtocolType };
 
-export const isProtocolType = (value: unknown): value is ProtocolType =>
-  typeof value === "string" && Object.hasOwn(protocolIcons, value);
+export const protocolLabels: Record<ProtocolType, string> = {
+  [ProtocolType.OpenaiCompatible]: protocolRegistry[ProtocolType.OpenaiCompatible].label,
+  [ProtocolType.OpenaiResponse]: protocolRegistry[ProtocolType.OpenaiResponse].label,
+  [ProtocolType.Anthropic]: protocolRegistry[ProtocolType.Anthropic].label,
+};
 
 export function ProtocolIcon({
   protocol,

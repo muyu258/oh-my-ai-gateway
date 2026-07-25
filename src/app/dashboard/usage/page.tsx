@@ -22,15 +22,12 @@ import {
   DataTableHeaderRow,
 } from "#/components/data-table";
 import { DataTablePanel } from "#/components/data-table-panel";
-import { isProtocolType, ProtocolIcon } from "#/components/icons/protocol";
+import { ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
-import {
-  getUsages,
-  type UsagePeriodFilter,
-  type UsageStatusFilter,
-  type UsageStreamFilter,
-} from "#/lib/database/usage.repository";
+import { getUsages } from "#/lib/database/usage.repository";
 import type { Usage } from "#/lib/database/drizzle/schema";
+import { isUsagePeriodFilter, isUsageStatusFilter, isUsageStreamFilter } from "#/lib/usage/filters";
+import { isProtocolType, protocolOptions } from "#/lib/protocol/protocol.registry";
 
 export const metadata: Metadata = {
   title: "Usage | Oh My AI Gateway",
@@ -39,11 +36,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
-const statusFilters = new Set<UsageStatusFilter>(["all", "success", "error"]);
-const periodFilters = new Set<UsagePeriodFilter>(["24h", "7d", "30d", "all"]);
-const streamFilters = new Set<UsageStreamFilter>(["all", "stream", "nonStream"]);
-const protocolFilters = new Set(["anthropic", "openaiCompatible", "openaiResponse"]);
-
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const firstValue = (value: string | string[] | undefined): string | undefined =>
@@ -119,14 +111,13 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
   const model = firstValue(resolvedSearchParams.model)?.trim() ?? "";
   const client = firstValue(resolvedSearchParams.client)?.trim() ?? "";
   const requestedProtocol = firstValue(resolvedSearchParams.protocolType);
-  const protocolType =
-    requestedProtocol && protocolFilters.has(requestedProtocol) ? requestedProtocol : "";
-  const requestedStatus = firstValue(resolvedSearchParams.status) as UsageStatusFilter | undefined;
-  const requestedPeriod = firstValue(resolvedSearchParams.period) as UsagePeriodFilter | undefined;
-  const requestedStream = firstValue(resolvedSearchParams.stream) as UsageStreamFilter | undefined;
-  const status = requestedStatus && statusFilters.has(requestedStatus) ? requestedStatus : "all";
-  const period = requestedPeriod && periodFilters.has(requestedPeriod) ? requestedPeriod : "7d";
-  const stream = requestedStream && streamFilters.has(requestedStream) ? requestedStream : "all";
+  const protocolType = isProtocolType(requestedProtocol) ? requestedProtocol : "";
+  const requestedStatus = firstValue(resolvedSearchParams.status);
+  const requestedPeriod = firstValue(resolvedSearchParams.period);
+  const requestedStream = firstValue(resolvedSearchParams.stream);
+  const status = isUsageStatusFilter(requestedStatus) ? requestedStatus : "all";
+  const period = isUsagePeriodFilter(requestedPeriod) ? requestedPeriod : "7d";
+  const stream = isUsageStreamFilter(requestedStream) ? requestedStream : "all";
   const requestedPage = Number.parseInt(firstValue(resolvedSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
@@ -228,9 +219,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                     parameter="protocolType"
                     options={[
                       { label: "All protocols", value: "" },
-                      { label: "Anthropic", value: "anthropic" },
-                      { label: "Chat Completions", value: "openaiCompatible" },
-                      { label: "Responses", value: "openaiResponse" },
+                      ...protocolOptions.map(({ label, value }) => ({ label, value })),
                     ]}
                   />
                   <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
@@ -277,14 +266,12 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
               const timestamp = formatDate(record.startAt);
               const statusInfo = getStatus(record.status);
               const cachedInputPercentage = getCachedInputPercentage(record);
-              const { hasContent: _hasContent, ...usageRecord } = record;
 
               return (
                 <UsageRecordRow
                   key={record.id}
                   recordId={record.id}
-                  recordJson={JSON.stringify(usageRecord, null, 2)}
-                  hasContent={record.hasContent}
+                  recordJson={JSON.stringify(record, null, 2)}
                 >
                   <DataTableCell>
                     <p

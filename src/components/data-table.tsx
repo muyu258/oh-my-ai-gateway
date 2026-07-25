@@ -40,12 +40,8 @@ export function DataTableHead({
     <th
       className={classes(
         "px-5 py-3",
-        pinned === "right"
-          ? "sticky z-20 bg-[#fbfbfd] shadow-[-10px_0_16px_-16px_rgba(0,0,0,0.45)]"
-          : undefined,
-        pinned === "right" && pinnedBoundary
-          ? "after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-[#d1d1d6] after:content-['']"
-          : undefined,
+        pinned === "right" ? "data-table-pinned-right sticky z-20 bg-[#fbfbfd]" : undefined,
+        pinned === "right" && pinnedBoundary ? "data-table-pinned-boundary" : undefined,
         className,
       )}
       style={pinned === "right" ? { ...style, right: pinOffset } : style}
@@ -83,11 +79,9 @@ export function DataTableCell({
       className={classes(
         "px-5 py-4",
         pinned === "right"
-          ? "sticky z-[2] bg-white shadow-[-10px_0_16px_-16px_rgba(0,0,0,0.45)] transition-colors duration-150 ease-out group-hover:bg-[#f7f7f9]"
+          ? "data-table-pinned-right sticky z-[2] bg-white transition-colors duration-150 ease-out group-hover:bg-[#f7f7f9]"
           : undefined,
-        pinned === "right" && pinnedBoundary
-          ? "after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-[#d1d1d6] after:content-['']"
-          : undefined,
+        pinned === "right" && pinnedBoundary ? "data-table-pinned-boundary" : undefined,
         className,
       )}
       style={pinned === "right" ? { ...style, right: pinOffset } : style}

@@ -2,12 +2,13 @@ import { GatewayErrorCode } from "#/lib/errors/gateway-error";
 import { collectModels } from "#/lib/provider/provider.helpers";
 import { invariant } from "es-toolkit";
 import { ProtocolType } from "../../protocol.types";
+import { protocolRegistry } from "../../protocol.registry";
 import { appendEndpoint, withHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
 import { defaultTo } from "es-toolkit/compat";
 
-const defaultEndpoint = "/v1/messages";
+const defaultEndpoint = protocolRegistry[ProtocolType.Anthropic].defaultEndpoint;
 const defaultBaseUrl = "https://api.anthropic.com";
 const protocolType = ProtocolType.Anthropic;
 

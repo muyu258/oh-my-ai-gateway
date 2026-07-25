@@ -1,12 +1,13 @@
 import { invariant } from "es-toolkit";
 import { defaultTo } from "es-toolkit/compat";
 import { ProtocolType } from "../../protocol.types";
+import { protocolRegistry } from "../../protocol.registry";
 import { appendEndpoint, withHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { createErrorResponse, createModelsResponse } from "./shared/openai.helpers";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
 
-const defaultEndpoint = "/v1/responses";
+const defaultEndpoint = protocolRegistry[ProtocolType.OpenaiResponse].defaultEndpoint;
 const defaultBaseUrl = "https://api.openai.com";
 const protocolType = ProtocolType.OpenaiResponse;
 
