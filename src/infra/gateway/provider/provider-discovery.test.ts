@@ -10,11 +10,17 @@ const provider: Provider = {
   name: "Test provider",
   models: ["first-model", "second-model"],
   testModel: "second-model",
-  protocols: [ProtocolType.OpenaiCompatible, ProtocolType.OpenaiResponse, ProtocolType.Anthropic],
-  protocolEndpoints: { [ProtocolType.OpenaiCompatible]: "/custom/chat" },
+  protocols: {
+    [ProtocolType.OpenaiCompatible]: { endpoint: "/custom/chat", enabled: true },
+    [ProtocolType.OpenaiResponse]: { endpoint: "", enabled: true },
+    [ProtocolType.Anthropic]: { endpoint: "", enabled: true },
+  },
+  websiteUrl: null,
   baseUrl: "https://provider.example/api",
-  providerToken: "provider-secret",
+  token: "provider-secret",
   enabled: true,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
 };
 
 const gateway = { baseUrl: "http://gateway.example", token: "gateway-secret" };
@@ -57,7 +63,13 @@ describe("discoverProviderModels", () => {
   test("rejects discovery through a disabled protocol", async () => {
     await expect(
       discoverProviderModels(
-        { ...provider, protocols: [ProtocolType.OpenaiCompatible] },
+        {
+          ...provider,
+          protocols: {
+            ...provider.protocols,
+            [ProtocolType.OpenaiResponse]: { endpoint: "", enabled: false },
+          },
+        },
         ProtocolType.OpenaiResponse,
       ),
     ).rejects.toThrow("Enable this protocol");
@@ -129,7 +141,7 @@ describe("testProviderProtocol", () => {
       Promise.resolve(Response.json({ choices: [] }))) as typeof fetch;
 
     const result = await testProviderProtocol(
-      { ...provider, testModel: undefined },
+      { ...provider, testModel: null },
       ProtocolType.OpenaiCompatible,
       gateway,
     );

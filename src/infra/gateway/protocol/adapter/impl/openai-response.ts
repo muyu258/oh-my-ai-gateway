@@ -1,92 +1,83 @@
 import { invariant } from "es-toolkit";
+import { defaultTo } from "es-toolkit/compat";
 import { ProtocolType } from "../../protocol.types";
-import { appendEndpoint, withProviderHeaders } from "../adapter.helpers";
-import type {
-  ProtocolAdapter,
-  RequestAdapter,
-  ResponseAdapter,
-  SseResponseCollector,
-} from "../adapter.types";
-import { z } from "zod";
+import { appendEndpoint, withHeaders } from "../adapter.helpers";
+import type { ProtocolAdapter } from "../adapter.types";
 import { createErrorResponse, createModelsResponse } from "./shared/openai.helpers";
-
-const requestSchema = z.object({ model: z.string().min(1) });
-const responseUsageSchema = z
-  .object({
-    usage: z
-      .object({
-        input_tokens: z.number().optional(),
-        output_tokens: z.number().optional(),
-        input_tokens_details: z.object({ cached_tokens: z.number().optional() }).optional(),
-      })
-      .optional(),
-  })
-  .transform(({ usage }) =>
-    usage
-      ? {
-          usage: {
-            inputTokens: usage.input_tokens,
-            outputTokens: usage.output_tokens,
-            cachedInputTokens: usage.input_tokens_details?.cached_tokens,
-          },
-        }
-      : {},
-  );
+import { consumeJsonEventStream } from "./shared/response-parser.helpers";
 
 const defaultEndpoint = "/v1/responses";
 const defaultBaseUrl = "https://api.openai.com";
 const protocolType = ProtocolType.OpenaiResponse;
 
-const createSseResponseCollector = (): SseResponseCollector => {
-  let response: unknown;
-  let latestEvent: unknown;
-
-  return {
-    append: ({ data }) => {
-      latestEvent = data;
-      if (!data || typeof data !== "object" || Array.isArray(data)) return;
-
-      const event = data as Record<string, unknown>;
-      const eventResponse = event.response;
-      if (eventResponse && typeof eventResponse === "object") response = eventResponse;
-      if (event.type === "error" || event.type === "response.failed") {
-        throw eventResponse ?? event;
-      }
-    },
-    complete: () => response ?? latestEvent,
-  };
-};
-
-const requestAdapter: RequestAdapter = {
-  getModel: async (request: Request): Promise<string> => {
-    const payload: unknown = await request.clone().json();
-    return requestSchema.parse(payload).model;
-  },
-  getGatewayToken: ({ headers }: Request): string => {
-    const authorization = headers.get("authorization");
-    invariant(authorization, new Error("Bearer gateway token is required"));
-    return authorization.replace(/^Bearer\s+/i, "");
-  },
-  requestTransformer: ({ request, options }) => {
-    const { providerToken, baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
-    const upstreamRequest = new Request(appendEndpoint(baseUrl, endpoint), request);
-    return withProviderHeaders(upstreamRequest, {
-      authorization: `Bearer ${providerToken}`,
-    });
-  },
-};
-
-const responseAdapter: ResponseAdapter = {
-  createModelsResponse,
-  createErrorResponse,
-  createSseResponseCollector,
-  extractResponseMetadata: (payload) => responseUsageSchema.safeParse(payload).data ?? {},
-};
-
 export const openaiResponseAdapter: ProtocolAdapter = {
   defaultEndpoint,
   defaultBaseUrl,
   protocolType,
-  requestAdapter,
-  responseAdapter,
+
+  getModel: async (request) => {
+    const payload = await request.clone().json();
+    return payload["model"];
+  },
+  getToken: ({ headers }) => {
+    const authorization = headers.get("authorization");
+    invariant(authorization, new Error("Bearer gateway token is required"));
+    return authorization.replace(/^Bearer\s+/i, "");
+  },
+  transformer: ({ request, options }) => {
+    const { token, baseUrl = defaultBaseUrl, endpoint = defaultEndpoint } = options;
+    const upstreamRequest = new Request(appendEndpoint(baseUrl, endpoint), request);
+    return withHeaders(upstreamRequest, {
+      authorization: `Bearer ${token}`,
+    });
+  },
+
+  parseStreamingResponse: async (response) => {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let cacheReadInputTokens = 0;
+
+    await consumeJsonEventStream(response, (data) => {
+      if (data.type === "error" || data.type === "response.failed") {
+        throw data.response?.error ?? data.error ?? data;
+      }
+
+      if (data.response?.usage) {
+        inputTokens = defaultTo(data.response.usage.input_tokens, 0);
+        outputTokens = defaultTo(data.response.usage.output_tokens, 0);
+        cacheReadInputTokens = defaultTo(
+          data.response.usage.input_tokens_details?.cached_tokens,
+          0,
+        );
+      }
+    });
+
+    return {
+      inputTokens,
+      outputTokens,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens,
+    };
+  },
+  parseJsonResponse: async (response) => {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let cacheReadInputTokens = 0;
+    const data = await response.json();
+
+    if (data.usage) {
+      inputTokens = defaultTo(data.usage.input_tokens, 0);
+      outputTokens = defaultTo(data.usage.output_tokens, 0);
+      cacheReadInputTokens = defaultTo(data.usage.input_tokens_details?.cached_tokens, 0);
+    }
+
+    return {
+      inputTokens,
+      outputTokens,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens,
+    };
+  },
+  createModelsResponse,
+  createErrorResponse,
 };

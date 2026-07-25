@@ -86,10 +86,10 @@ const getStatus = (status: string | null) => {
 };
 
 const getCachedInputPercentage = (record: RequestRecord): number | null => {
-  const inputTokens = record.usage?.inputTokens ?? 0;
-  const cachedInputTokens = record.usage?.cachedInputTokens ?? 0;
-  if (!inputTokens || !cachedInputTokens) return null;
-  return Math.min(100, Math.round((cachedInputTokens / inputTokens) * 100));
+  const inputTokens = record.inputTokens ?? 0;
+  const cacheReadInputTokens = record.cacheReadInputTokens ?? 0;
+  if (!inputTokens || !cacheReadInputTokens) return null;
+  return Math.min(100, Math.round((cacheReadInputTokens / inputTokens) * 100));
 };
 
 const getDuration = (record: RequestRecord): number | null =>
@@ -340,7 +340,10 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                     </p>
                   </DataTableCell>
                   <DataTableCell className="whitespace-nowrap">
-                    {record.usage ? (
+                    {record.inputTokens !== null ||
+                    record.outputTokens !== null ||
+                    record.cacheCreationInputTokens !== null ||
+                    record.cacheReadInputTokens !== null ? (
                       <div className="mx-auto flex w-fit flex-col items-center gap-1 text-xs tabular-nums">
                         <div className="flex items-center justify-center gap-1">
                           <span className="text-[#667085]" title="Output tokens">
@@ -348,7 +351,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                             <span className="sr-only">Output tokens</span>
                           </span>
                           <span className="font-medium text-[#344054]">
-                            {formatCompactNumber(record.usage.outputTokens ?? 0)}
+                            {formatCompactNumber(record.outputTokens ?? 0)}
                           </span>
                         </div>
                         <div className="flex items-center justify-center gap-1">
@@ -357,7 +360,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
                             <span className="sr-only">Input tokens</span>
                           </span>
                           <span className="font-medium text-[#344054]">
-                            {formatCompactNumber(record.usage.inputTokens ?? 0)}
+                            {formatCompactNumber(record.inputTokens ?? 0)}
                             {cachedInputPercentage !== null ? (
                               <span
                                 className="ml-1 text-[#248a3d]"

@@ -71,8 +71,9 @@ const emptyForm: ProviderFormInput = {
   name: "",
   models: [],
   testModel: "",
-  protocols: [ProtocolType.OpenaiCompatible],
-  protocolEndpoints: {},
+  protocols: {
+    [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true },
+  },
   websiteUrl: "",
   baseUrl: "",
   providerToken: "",
@@ -156,7 +157,6 @@ function ProviderDialog({
           models: provider.models,
           testModel: provider.testModel ?? provider.models[0] ?? "",
           protocols: provider.protocols,
-          protocolEndpoints: provider.protocolEndpoints,
           websiteUrl: provider.websiteUrl ?? "",
           baseUrl: provider.baseUrl ?? "",
           providerToken: "",
@@ -419,15 +419,22 @@ function ProviderDialog({
             <FormSectionCard title="Protocols">
               <div className="space-y-1.5">
                 {protocolOptions.map((option) => {
-                  const checked = form.protocols.includes(option.value);
+                  const protocolConfig = form.protocols[option.value];
+                  const checked = protocolConfig?.enabled ?? false;
                   const expanded = checked && expandedProtocol === option.value;
                   const actionPending = activeProtocolAction?.protocol === option.value && pending;
                   const connectionResult = connectionResults[option.value];
                   const toggleProtocol = () => {
-                    const protocols = checked
-                      ? form.protocols.filter((protocol) => protocol !== option.value)
-                      : [...form.protocols, option.value];
-                    setForm({ ...form, protocols });
+                    setForm({
+                      ...form,
+                      protocols: {
+                        ...form.protocols,
+                        [option.value]: {
+                          endpoint: protocolConfig?.endpoint ?? "",
+                          enabled: !checked,
+                        },
+                      },
+                    });
                     if (checked && expandedProtocol === option.value) {
                       setExpandedProtocol(null);
                     }
@@ -532,13 +539,16 @@ function ProviderDialog({
                           <div className="border-t border-[#bae6fd] bg-[#f1f5f9] px-4 py-3">
                             <FloatingInput
                               label="Endpoint"
-                              value={form.protocolEndpoints[option.value] ?? ""}
+                              value={protocolConfig?.endpoint ?? ""}
                               onChange={(event) =>
                                 setForm({
                                   ...form,
-                                  protocolEndpoints: {
-                                    ...form.protocolEndpoints,
-                                    [option.value]: event.target.value,
+                                  protocols: {
+                                    ...form.protocols,
+                                    [option.value]: {
+                                      endpoint: event.target.value,
+                                      enabled: protocolConfig?.enabled ?? true,
+                                    },
                                   },
                                 })
                               }
@@ -831,7 +841,7 @@ export function ProvidersView({
   };
 
   const test = (provider: ProviderSummary) => {
-    const protocol = provider.protocols[0];
+    const protocol = protocolOptions.find(({ value }) => provider.protocols[value]?.enabled)?.value;
     if (!protocol) {
       setToast({
         id: Date.now(),
@@ -985,9 +995,11 @@ export function ProvidersView({
                     </DataTableCell>
                     <DataTableCell>
                       <div className="mx-auto flex w-fit max-w-56 flex-wrap justify-center gap-1.5">
-                        {provider.protocols.map((protocol) => (
-                          <ProtocolIcon key={protocol} protocol={protocol} />
-                        ))}
+                        {protocolOptions.map(({ value: protocol }) =>
+                          provider.protocols[protocol]?.enabled ? (
+                            <ProtocolIcon key={protocol} protocol={protocol} />
+                          ) : null,
+                        )}
                       </div>
                     </DataTableCell>
                     <DataTableCell className="whitespace-nowrap">
@@ -1027,7 +1039,11 @@ export function ProvidersView({
                         <button
                           type="button"
                           onClick={() => test(provider)}
-                          disabled={pending || !provider.enabled || !provider.protocols.length}
+                          disabled={
+                            pending ||
+                            !provider.enabled ||
+                            !Object.values(provider.protocols).some((config) => config.enabled)
+                          }
                           aria-label={`Test ${provider.name}`}
                           title={
                             provider.enabled

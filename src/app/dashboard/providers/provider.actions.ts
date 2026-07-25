@@ -40,10 +40,12 @@ const providerSchema = z.object({
   name: nameSchema,
   models: z.array(z.string().trim().min(1)).min(1, "Add at least one model."),
   testModel: z.string().trim().min(1, "Select a test model."),
-  protocols: z.array(z.enum(ProtocolType)).min(1, "Select at least one protocol."),
-  protocolEndpoints: z.partialRecord(
+  protocols: z.partialRecord(
     z.enum(ProtocolType),
-    z.string().trim().max(2048, "Endpoint is too long."),
+    z.object({
+      endpoint: z.string().trim().max(2048, "Endpoint is too long."),
+      enabled: z.boolean(),
+    }),
   ),
   websiteUrl: z.union([z.literal(""), z.url("Enter a valid website URL.")]),
   baseUrl: z.union([z.literal(""), z.url("Enter a valid base URL.")]),
@@ -62,11 +64,11 @@ const normalizeInput = (input: ProviderFormInput): ProviderFormInput => {
     name: input.name.trim(),
     models,
     testModel: models.includes(requestedTestModel) ? requestedTestModel : (models[0] ?? ""),
-    protocols: [...new Set(input.protocols)],
-    protocolEndpoints: Object.fromEntries(
-      Object.entries(input.protocolEndpoints)
-        .map(([protocol, endpoint]) => [protocol, endpoint?.trim()])
-        .filter((entry): entry is [string, string] => Boolean(entry[1])),
+    protocols: Object.fromEntries(
+      Object.entries(input.protocols).map(([protocol, config]) => [
+        protocol,
+        { ...config, endpoint: config.endpoint.trim() },
+      ]),
     ),
     websiteUrl: input.websiteUrl.trim(),
     baseUrl: input.baseUrl.trim(),
@@ -94,10 +96,12 @@ export const createProviderAction = async (
     const parsed = providerSchema
       .extend({ providerToken: z.string().min(1, "API token is required.") })
       .parse(normalizeInput(input));
+    const { providerToken, ...provider } = parsed;
     await createProvider({
-      ...parsed,
-      websiteUrl: parsed.websiteUrl || undefined,
-      baseUrl: parsed.baseUrl || undefined,
+      ...provider,
+      token: providerToken,
+      websiteUrl: parsed.websiteUrl || null,
+      baseUrl: parsed.baseUrl || null,
     });
     revalidatePath("/dashboard/providers");
     return { ok: true };
@@ -118,10 +122,9 @@ export const updateProviderAction = async (
       models: parsed.models,
       testModel: parsed.testModel,
       protocols: parsed.protocols,
-      protocolEndpoints: parsed.protocolEndpoints,
-      websiteUrl: parsed.websiteUrl || undefined,
-      baseUrl: parsed.baseUrl || undefined,
-      providerToken: parsed.providerToken || undefined,
+      websiteUrl: parsed.websiteUrl || null,
+      baseUrl: parsed.baseUrl || null,
+      token: parsed.providerToken || undefined,
       enabled: parsed.enabled,
     });
     revalidatePath("/dashboard/providers");

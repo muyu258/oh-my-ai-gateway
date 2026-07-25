@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+import { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+
 export const requestRecord = sqliteTable("request_record", {
   id: text("id")
     .primaryKey()
@@ -9,16 +11,13 @@ export const requestRecord = sqliteTable("request_record", {
   model: text("model"),
   client: text("client"),
   protocolType: text("protocol_type"),
-  status: text("status"),
+  status: integer("status"),
   isStream: integer("is_stream", { mode: "boolean" }).notNull().default(false),
   error: text("error", { mode: "json" }).$type<unknown>(),
-  usage: text("usage", { mode: "json" }).$type<{
-    inputTokens?: number;
-    outputTokens?: number;
-    cachedInputTokens?: number;
-    cost?: string;
-    costDetails?: Record<string, unknown>;
-  }>(),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  cacheCreationInputTokens: integer("cache_creation_input_tokens"),
+  cacheReadInputTokens: integer("cache_read_input_tokens"),
   startAt: integer("start_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -33,14 +32,22 @@ export const provider = sqliteTable("provider", {
   name: text("name").primaryKey(),
   models: text("models", { mode: "json" }).$type<string[]>().notNull(),
   testModel: text("test_model"),
-  protocols: text("protocols", { mode: "json" }).$type<string[]>().notNull(),
-  protocolEndpoints: text("protocol_endpoints", { mode: "json" })
-    .$type<Partial<Record<string, string>>>()
-    .notNull()
-    .default(sql`'{}'`),
+  protocols: text("protocols", { mode: "json" })
+    .$type<
+      Partial<
+        Record<
+          ProtocolType,
+          {
+            endpoint: string;
+            enabled: boolean;
+          }
+        >
+      >
+    >()
+    .notNull(),
   websiteUrl: text("website_url"),
   baseUrl: text("base_url"),
-  providerToken: text("provider_token").notNull(),
+  token: text("token").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()

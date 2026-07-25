@@ -1,13 +1,8 @@
-import { ProtocolType } from "../protocol/protocol.types";
+import type { ProviderRecord } from "#/infra/database/drizzle/schema";
+import type { ProtocolType } from "../protocol/protocol.types";
 
-export type Provider = {
-  name: string;
-  models: readonly string[];
-  testModel?: string;
-  protocols: readonly ProtocolType[];
-  protocolEndpoints?: Partial<Record<ProtocolType, string>>;
-  websiteUrl?: string;
-  baseUrl?: string;
-  providerToken: string;
-  enabled: boolean;
-};
+export type Provider = ProviderRecord;
+
+export type ProviderProtocols = ProviderRecord["protocols"];
+
+export type ProviderProtocolConfig = NonNullable<ProviderProtocols[ProtocolType]>;

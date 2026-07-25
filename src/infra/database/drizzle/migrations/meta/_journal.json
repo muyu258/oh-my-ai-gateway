@@ -71,6 +71,20 @@
       "when": 1784877388287,
       "tag": "0009_spicy_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1784915519910,
+      "tag": "0010_flatten-request-usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1784948779820,
+      "tag": "0011_provider-protocol-config",
+      "breakpoints": true
     }
   ]
 }

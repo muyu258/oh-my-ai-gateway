@@ -1,15 +1,13 @@
-import type { ProtocolType } from "#/infra/gateway/protocol/protocol.types";
+import type { ProviderRecord } from "#/infra/database/drizzle/schema";
 
-export type ProviderFormInput = {
-  name: string;
-  models: string[];
-  testModel: string;
-  protocols: ProtocolType[];
-  protocolEndpoints: Partial<Record<ProtocolType, string>>;
-  websiteUrl: string;
-  baseUrl: string;
-  providerToken: string;
-  enabled: boolean;
+export type ProviderFormInput = Pick<
+  ProviderRecord,
+  "name" | "models" | "protocols" | "enabled"
+> & {
+  testModel: NonNullable<ProviderRecord["testModel"]>;
+  websiteUrl: NonNullable<ProviderRecord["websiteUrl"]>;
+  baseUrl: NonNullable<ProviderRecord["baseUrl"]>;
+  providerToken: ProviderRecord["token"];
 };
 
 export type ProviderActionResult =

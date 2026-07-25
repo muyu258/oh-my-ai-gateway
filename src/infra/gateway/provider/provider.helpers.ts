@@ -9,17 +9,24 @@ export const forEnabled = filter(({ enabled }: Provider) => enabled);
 export const forProtocol = (type: ProtocolType) => forProtocols([type]);
 
 export const forProtocols = (types: ProtocolType[]) =>
-  filter(({ protocols }: Provider) => types.some((t) => protocols.includes(t)));
+  filter(({ protocols }: Provider) => types.some((type) => protocols[type]?.enabled));
 
-export const forModel = (model: string) =>
-  filter(({ models: modelIds }: Provider) => modelIds.includes(model));
+export const forModel = (model: string) => filter(({ models }: Provider) => models.includes(model));
 
-export const forName = (name: string) =>
-  filter(({ name: providerName }: Provider) => providerName === name);
+export const selectProvider = (
+  providers: Provider[],
+  options: {
+    name?: string | null;
+  },
+): Provider => {
+  let provider: Provider | undefined;
 
-/** Selection strategy placeholder: use the first eligible provider for now. */
-export const selectProvider = (providers: Provider[]): Provider => {
-  const provider = providers[0];
+  if (options.name) {
+    provider = providers.find(({ name }) => name === options.name);
+  } else {
+    provider = providers.at(0);
+  }
+
   invariant(
     provider,
     new GatewayError(GatewayErrorCode.RouteNotFound, "No provider matches this protocol and model"),

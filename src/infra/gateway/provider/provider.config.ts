@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import providersJson from "./providers.json";
 import { ProtocolType } from "../protocol/protocol.types";
-import type { Provider } from "./provider.types";
+import type { NewProviderRecord } from "#/infra/database/drizzle/schema";
 
 const providerSchema = z.object({
   name: z.string().min(1),
@@ -15,4 +15,13 @@ const providerSchema = z.object({
   enabled: z.boolean(),
 });
 
-export const legacyProviders: Provider[] = z.array(providerSchema).parse(providersJson);
+export const legacyProviders: NewProviderRecord[] = z
+  .array(providerSchema)
+  .parse(providersJson)
+  .map(({ protocols, providerToken, ...provider }) => ({
+    ...provider,
+    protocols: Object.fromEntries(
+      protocols.map((protocol) => [protocol, { endpoint: "", enabled: true }]),
+    ),
+    token: providerToken,
+  }));

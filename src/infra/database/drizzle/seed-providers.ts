@@ -27,7 +27,6 @@ await db
         ...legacyProvider,
         models,
         testModel: legacyProvider.testModel ?? models[0],
-        protocols: [...legacyProvider.protocols],
       };
     }),
   )

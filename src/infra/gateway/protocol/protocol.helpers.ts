@@ -1,7 +1,7 @@
 import { ProtocolType } from "./protocol.types";
 import { GatewayError, GatewayErrorCode } from "../errors/gateway-error";
 
-export const analyzeProtocolByHeaders = ({ headers }: Request): ProtocolType => {
+export const analyzeProtocol = ({ headers }: Request): ProtocolType => {
   const hasAuthorization = Boolean(headers.get("authorization")?.trim());
   const hasAnthropicApiKey = Boolean(headers.get("x-api-key")?.trim());
 

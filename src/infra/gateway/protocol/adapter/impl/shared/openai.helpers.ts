@@ -1,9 +1,9 @@
 import { collectModels } from "#/infra/gateway/provider/provider.helpers";
 import { GatewayErrorCode } from "#/infra/gateway/errors/gateway-error";
-import { ProtocolAdapter } from "../../adapter.types";
+import type { ProtocolAdapter } from "../../adapter.types";
 
-type ModelsResponse = ProtocolAdapter["responseAdapter"]["createModelsResponse"];
-type ErrorResponse = ProtocolAdapter["responseAdapter"]["createErrorResponse"];
+type ModelsResponse = ProtocolAdapter["createModelsResponse"];
+type ErrorResponse = ProtocolAdapter["createErrorResponse"];
 
 const errorTypeByCode: Record<GatewayErrorCode, string> = {
   [GatewayErrorCode.InvalidRequest]: "invalid_request_error",

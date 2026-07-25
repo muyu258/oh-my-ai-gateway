@@ -14,9 +14,9 @@ const discoveryHeaders = (provider: Provider, protocol: ProtocolType): Headers =
 
   if (protocol === ProtocolType.Anthropic) {
     headers.set("anthropic-version", "2023-06-01");
-    headers.set("x-api-key", provider.providerToken);
+    headers.set("x-api-key", provider.token);
   } else {
-    headers.set("authorization", `Bearer ${provider.providerToken}`);
+    headers.set("authorization", `Bearer ${provider.token}`);
   }
 
   return headers;
@@ -53,14 +53,14 @@ export const testProviderProtocol = async (
   protocol: ProtocolType,
   gateway: { baseUrl: string; token: string },
 ): Promise<{ latencyMs: number; model: string }> => {
-  if (!provider.protocols.includes(protocol))
+  if (!provider.protocols[protocol]?.enabled)
     throw new Error("Enable this protocol before testing it.");
 
   const model = provider.testModel?.trim() || provider.models.at(0)?.trim();
   if (!model) throw new Error("Add at least one model before testing this protocol.");
 
   const adapter = adapters[protocol];
-  const headers = discoveryHeaders({ ...provider, providerToken: gateway.token }, protocol);
+  const headers = discoveryHeaders({ ...provider, token: gateway.token }, protocol);
   headers.set("content-type", "application/json");
   headers.set("x-provider-name", provider.name);
   headers.set("user-agent", "gateway/test");
@@ -87,7 +87,7 @@ export const discoverProviderModels = async (
   provider: Provider,
   protocol: ProtocolType,
 ): Promise<{ latencyMs: number; models: string[] }> => {
-  if (!provider.protocols.includes(protocol))
+  if (!provider.protocols[protocol]?.enabled)
     throw new Error("Enable this protocol before testing it.");
 
   const baseUrl = provider.baseUrl ?? adapters[protocol].defaultBaseUrl;
