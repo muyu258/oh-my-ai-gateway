@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import {
   getProviderSummaries,
-  type ProviderResponseTimePeriod,
+  type ProviderStatisticsPeriod,
 } from "#/lib/database/provider.repository";
 import { ProvidersView } from "./_components/providers-view";
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const responseTimePeriods = new Set<ProviderResponseTimePeriod>([
+const statisticsPeriods = new Set<ProviderStatisticsPeriod>([
   "30m",
   "1h",
   "6h",
@@ -29,12 +29,13 @@ export default async function ProvidersPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const requestedPeriod = (await searchParams).responseTimePeriod;
+  const resolvedSearchParams = await searchParams;
+  const requestedPeriod = resolvedSearchParams.period ?? resolvedSearchParams.responseTimePeriod;
   const periodValue = Array.isArray(requestedPeriod) ? requestedPeriod[0] : requestedPeriod;
-  const responseTimePeriod = responseTimePeriods.has(periodValue as ProviderResponseTimePeriod)
-    ? (periodValue as ProviderResponseTimePeriod)
+  const statisticsPeriod = statisticsPeriods.has(periodValue as ProviderStatisticsPeriod)
+    ? (periodValue as ProviderStatisticsPeriod)
     : "30m";
-  const providers = await getProviderSummaries(responseTimePeriod);
+  const providers = await getProviderSummaries(statisticsPeriod);
 
-  return <ProvidersView providers={providers} responseTimePeriod={responseTimePeriod} />;
+  return <ProvidersView providers={providers} statisticsPeriod={statisticsPeriod} />;
 }

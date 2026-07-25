@@ -1,8 +1,14 @@
-import { and, asc, avg, eq, gte, isNotNull } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import type { Provider } from "#/lib/provider/provider.types";
 import { db } from "./drizzle/client";
-import { provider, usage, type NewProviderRecord, type ProviderRecord } from "./drizzle/schema";
+import { provider, type NewProviderRecord, type ProviderRecord } from "./drizzle/schema";
+import {
+  createProviderStatisticsRepository,
+  type ProviderStatisticsPeriod,
+} from "./provider-statistics.repository.core";
+
+export type { ProviderStatisticsPeriod } from "./provider-statistics.repository.core";
 
 const sortModels = (models: string[]): string[] =>
   models.sort((left, right) => left.localeCompare(right));
@@ -45,17 +51,6 @@ export type ProviderSummary = Pick<
   averageResponseTimeMs: number | null;
 };
 
-export type ProviderResponseTimePeriod = "30m" | "1h" | "6h" | "24h" | "7d" | "30d" | "all";
-
-const responseTimePeriodInMilliseconds: Partial<Record<ProviderResponseTimePeriod, number>> = {
-  "30m": 30 * 60 * 1000,
-  "1h": 60 * 60 * 1000,
-  "6h": 6 * 60 * 60 * 1000,
-  "24h": 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000,
-  "30d": 30 * 24 * 60 * 60 * 1000,
-};
-
 export type CreateProviderInput = NewProviderRecord;
 
 export type UpdateProviderInput = Omit<NewProviderRecord, "createdAt" | "updatedAt" | "token"> & {
@@ -68,27 +63,12 @@ export const getProviders = async (): Promise<Provider[]> => {
 };
 
 export const getProviderSummaries = async (
-  responseTimePeriod: ProviderResponseTimePeriod = "30m",
+  statisticsPeriod: ProviderStatisticsPeriod = "30m",
 ): Promise<ProviderSummary[]> => {
-  const responseTimePeriodMs = responseTimePeriodInMilliseconds[responseTimePeriod];
+  const { getAverageResponseTimes } = createProviderStatisticsRepository(db);
   const [providerRecords, responseTimeAverages] = await Promise.all([
     getProviders(),
-    db
-      .select({
-        name: usage.name,
-        averageResponseTimeMs: avg(usage.timeToFirstByteMs).mapWith(Number),
-      })
-      .from(usage)
-      .where(
-        and(
-          responseTimePeriodMs
-            ? gte(usage.startAt, new Date(Date.now() - responseTimePeriodMs))
-            : undefined,
-          isNotNull(usage.name),
-          isNotNull(usage.timeToFirstByteMs),
-        ),
-      )
-      .groupBy(usage.name),
+    getAverageResponseTimes(statisticsPeriod),
   ]);
   const averageByProvider = new Map(
     responseTimeAverages.map(({ name, averageResponseTimeMs }) => [name, averageResponseTimeMs]),

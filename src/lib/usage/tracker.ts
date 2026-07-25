@@ -10,14 +10,14 @@ export const track = (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
-  startedAt: Date,
+  timing: { startedAt: Date; timeToFirstByteMs: number },
 ): void => {
   const trackingPromise = processUsageTracking(
     request,
     response,
     adapter,
     provider,
-    startedAt,
+    timing,
     saveUsage,
   ).catch((error) => {
     console.error(`Failed to track usage for provider '${provider.name}'`, error);

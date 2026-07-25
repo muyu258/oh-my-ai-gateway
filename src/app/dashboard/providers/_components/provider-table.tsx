@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Check,
-  ExternalLink,
-  LoaderCircle,
-  Pencil,
-  PlugZap,
-  Plus,
-  ServerCog,
-  Trash2,
-} from "lucide-react";
+import { Check, LoaderCircle, Pencil, PlugZap, Plus, ServerCog, Trash2 } from "lucide-react";
 
 import {
   DataTable,
@@ -24,15 +15,12 @@ import {
 import { DataTablePanel } from "#/components/data-table-panel";
 import { ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
-import type {
-  ProviderResponseTimePeriod,
-  ProviderSummary,
-} from "#/lib/database/provider.repository";
+import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
 import { protocolOptions } from "#/lib/protocol/protocol.registry";
 import {
   formatUpdatedAt,
   responseTimeBadge,
-  responseTimePeriodLabels,
+  statisticsPeriodLabels,
 } from "./provider-view.helpers";
 
 const ProviderTableColumns = () => (
@@ -49,7 +37,7 @@ const ProviderTableColumns = () => (
 export function ProviderTable({
   providers,
   totalProviders,
-  responseTimePeriod,
+  statisticsPeriod,
   pending,
   testingProvider,
   onAdd,
@@ -60,7 +48,7 @@ export function ProviderTable({
 }: {
   providers: ProviderSummary[];
   totalProviders: number;
-  responseTimePeriod: ProviderResponseTimePeriod;
+  statisticsPeriod: ProviderStatisticsPeriod;
   pending: boolean;
   testingProvider: string | null;
   onAdd: () => void;
@@ -72,13 +60,6 @@ export function ProviderTable({
   return (
     <DataTablePanel
       minWidth={980}
-      footer={
-        <p className="text-sm text-[#667085]">
-          <span className="font-medium tabular-nums text-[#344054]">{providers.length}</span>{" "}
-          {providers.length === 1 ? "provider" : "providers"}
-          {providers.length !== totalProviders ? ` of ${totalProviders}` : ""}
-        </p>
-      }
       header={
         <DataTable className="table-fixed text-center">
           <ProviderTableColumns />
@@ -89,22 +70,7 @@ export function ProviderTable({
               </DataTableHead>
               <DataTableHead>Endpoint</DataTableHead>
               <DataTableHead>Protocols</DataTableHead>
-              <DataTableHead>
-                <TableFilter
-                  label="Avg response"
-                  parameter="responseTimePeriod"
-                  defaultValue="30m"
-                  options={[
-                    { label: "Last 30 minutes", value: "30m" },
-                    { label: "Last hour", value: "1h" },
-                    { label: "Last 6 hours", value: "6h" },
-                    { label: "Last 24 hours", value: "24h" },
-                    { label: "Last 7 days", value: "7d" },
-                    { label: "Last 30 days", value: "30d" },
-                    { label: "All time", value: "all" },
-                  ]}
-                />
-              </DataTableHead>
+              <DataTableHead>Avg response</DataTableHead>
               <DataTableHead>Status</DataTableHead>
               <DataTableHead pinned="right">Actions</DataTableHead>
             </DataTableHeaderRow>
@@ -121,22 +87,16 @@ export function ProviderTable({
             return (
               <DataTableRow key={provider.name}>
                 <DataTableCell>
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f1f5f9] text-[#475569]">
-                      <ServerCog className="size-4.5" aria-hidden="true" />
-                    </div>
+                  <div className="flex items-center justify-center">
                     {provider.websiteUrl ? (
                       <a
                         href={provider.websiteUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex min-w-0 max-w-64 items-center gap-1.5 font-medium text-[#101828] transition hover:text-[#2563eb]"
+                        className="min-w-0 max-w-64 truncate font-medium text-[#0369a1] transition hover:text-[#075985]"
                         title={`${provider.name}(${provider.models.length})`}
                       >
-                        <span className="truncate">
-                          {provider.name}({provider.models.length})
-                        </span>
-                        <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+                        {provider.name}({provider.models.length})
                       </a>
                     ) : (
                       <p
@@ -170,7 +130,7 @@ export function ProviderTable({
                 </DataTableCell>
                 <DataTableCell className="whitespace-nowrap">
                   <span
-                    title={`Average time to first byte over ${responseTimePeriodLabels[responseTimePeriod]}`}
+                    title={`Average time to first byte over ${statisticsPeriodLabels[statisticsPeriod]}`}
                     className={`inline-flex min-w-16 justify-center rounded-md px-2.5 py-1 font-mono text-xs font-medium tabular-nums ${responseTime.className}`}
                   >
                     {responseTime.label}

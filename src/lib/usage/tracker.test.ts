@@ -65,7 +65,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
-      new Date(100),
+      { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
 
@@ -76,6 +76,8 @@ describe("processUsageTracking", () => {
       status: 200,
       isStream: false,
       error: undefined,
+      startAt: new Date(100),
+      timeToFirstByteMs: 42,
       ...parsedUsage,
     });
     expect(trackingRequest.bodyUsed).toBe(false);
@@ -94,7 +96,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
-      new Date(100),
+      { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
 
@@ -117,7 +119,7 @@ describe("processUsageTracking", () => {
       trackingResponse,
       adapter,
       provider,
-      new Date(100),
+      { startedAt: new Date(100), timeToFirstByteMs: 42 },
       persistUsage,
     );
 

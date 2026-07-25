@@ -15,6 +15,7 @@ export const requestHandler = async ({
   adapter: ProtocolAdapter;
 }): Promise<Response> => {
   const { getModel, getToken, protocolType, transformer, createErrorResponse } = adapter;
+  const startedAt = new Date();
 
   try {
     pipe(request, getToken, authByToken);
@@ -30,6 +31,7 @@ export const requestHandler = async ({
     const { baseUrl, token, protocols } = provider;
     const endpoint = protocols[protocolType]?.endpoint?.trim() || adapter.defaultEndpoint;
 
+    const providerRequestStartedAt = performance.now();
     const upstreamResponse = await fetch(
       transformer({
         request,
@@ -41,9 +43,13 @@ export const requestHandler = async ({
         },
       }),
     );
+    const timeToFirstByteMs = Math.max(0, Math.round(performance.now() - providerRequestStartedAt));
     const trackingResponse = upstreamResponse.clone();
 
-    track(trackingRequest, trackingResponse, adapter, provider, new Date());
+    track(trackingRequest, trackingResponse, adapter, provider, {
+      startedAt,
+      timeToFirstByteMs,
+    });
     return forwardResponse(upstreamResponse);
   } catch (error) {
     console.error("error:", error);

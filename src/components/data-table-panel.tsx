@@ -1,11 +1,17 @@
 "use client";
 
 import type { ReactNode, UIEvent } from "react";
-import { useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 const classes = (...values: Array<string | undefined>): string => values.filter(Boolean).join(" ");
 
-export const hasHorizontalScrollOffset = (scrollLeft: number): boolean => scrollLeft > 0;
+const HORIZONTAL_OVERFLOW_TOLERANCE = 1;
+
+export const hasHiddenContentToRight = (
+  scrollLeft: number,
+  clientWidth: number,
+  scrollWidth: number,
+): boolean => scrollLeft + clientWidth < scrollWidth - HORIZONTAL_OVERFLOW_TOLERANCE;
 
 export function DataTablePanel({
   header,
@@ -21,7 +27,29 @@ export function DataTablePanel({
   className?: string;
 }) {
   const headerViewportRef = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const bodyViewportRef = useRef<HTMLDivElement>(null);
+  const bodyContentRef = useRef<HTMLDivElement>(null);
+  const [hiddenContentToRight, setHiddenContentToRight] = useState(false);
+
+  const updatePinnedBoundary = useCallback((viewport: HTMLDivElement) => {
+    setHiddenContentToRight(
+      hasHiddenContentToRight(viewport.scrollLeft, viewport.clientWidth, viewport.scrollWidth),
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    const viewport = bodyViewportRef.current;
+    const content = bodyContentRef.current;
+    if (!viewport || !content) return;
+
+    const update = () => updatePinnedBoundary(viewport);
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(viewport);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [minWidth, updatePinnedBoundary]);
 
   const syncHeader = (event: UIEvent<HTMLDivElement>) => {
     const { scrollLeft } = event.currentTarget;
@@ -29,13 +57,12 @@ export function DataTablePanel({
     if (headerViewportRef.current) {
       headerViewportRef.current.scrollLeft = scrollLeft;
     }
-    // The pinned divider only marks columns hidden beyond the left edge of the body viewport.
-    setScrolled(hasHorizontalScrollOffset(scrollLeft));
+    updatePinnedBoundary(event.currentTarget);
   };
 
   return (
     <section
-      data-scrolled={scrolled || undefined}
+      data-hidden-right={hiddenContentToRight || undefined}
       className={classes(
         "data-table-panel flex h-full min-h-0 w-full flex-col overflow-hidden bg-white",
         className,
@@ -48,10 +75,13 @@ export function DataTablePanel({
         <div style={{ minWidth }}>{header}</div>
       </div>
       <div
+        ref={bodyViewportRef}
         className="data-table-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
         onScroll={syncHeader}
       >
-        <div style={{ minWidth }}>{children}</div>
+        <div ref={bodyContentRef} style={{ minWidth }}>
+          {children}
+        </div>
       </div>
       {footer ? (
         <footer className="flex h-14 shrink-0 items-center justify-between gap-4 border-t border-black/[0.08] bg-white/95 px-4 backdrop-blur-xl sm:px-5">

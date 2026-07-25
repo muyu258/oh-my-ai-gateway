@@ -1,7 +1,4 @@
-import type {
-  ProviderResponseTimePeriod,
-  ProviderSummary,
-} from "#/lib/database/provider.repository";
+import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
 import { protocolOptions } from "#/lib/protocol/protocol.registry";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { ProviderFormInput } from "../provider-form.types";
@@ -76,7 +73,7 @@ export const responseTimeBadge = (
   return { label: `${Math.round(milliseconds)} ms`, className: "bg-[#fef3f2] text-[#b42318]" };
 };
 
-export const responseTimePeriodLabels: Record<ProviderResponseTimePeriod, string> = {
+export const statisticsPeriodLabels: Record<ProviderStatisticsPeriod, string> = {
   "30m": "30m",
   "1h": "1h",
   "6h": "6h",

@@ -25,7 +25,7 @@ export const processUsageTracking = async (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
-  startAt: Date,
+  timing: { startedAt: Date; timeToFirstByteMs: number },
   persistUsage: (record: NewUsage) => Promise<void>,
 ): Promise<void> => {
   const id = crypto.randomUUID();
@@ -57,7 +57,8 @@ export const processUsageTracking = async (
       status: response.status,
       isStream,
       error,
-      startAt,
+      startAt: timing.startedAt,
+      timeToFirstByteMs: timing.timeToFirstByteMs,
       endAt: new Date(),
     },
     usage,

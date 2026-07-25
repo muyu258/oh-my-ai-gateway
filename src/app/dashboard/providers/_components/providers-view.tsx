@@ -5,22 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import type {
-  ProviderResponseTimePeriod,
-  ProviderSummary,
-} from "#/lib/database/provider.repository";
+import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
 import { testProviderProtocolAction, toggleProviderAction } from "../provider.actions";
 import { DeleteProviderDialog } from "./delete-provider-dialog";
 import { ProviderDialog } from "./provider-dialog";
 import { ProviderTable } from "./provider-table";
+import { ProviderStatisticsPeriodFilter } from "./provider-statistics-period-filter";
 import { firstEnabledProtocol } from "./provider-view.helpers";
 
 export function ProvidersView({
   providers,
-  responseTimePeriod,
+  statisticsPeriod,
 }: {
   providers: ProviderSummary[];
-  responseTimePeriod: ProviderResponseTimePeriod;
+  statisticsPeriod: ProviderStatisticsPeriod;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,14 +76,17 @@ export function ProvidersView({
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb] px-5 py-5 sm:px-7">
         <h1 className="text-xl font-semibold text-[#101828]">Providers</h1>
-        <button
-          type="button"
-          onClick={() => setEditing("new")}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:ring-offset-2"
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Add provider
-        </button>
+        <div className="flex items-center gap-2">
+          <ProviderStatisticsPeriodFilter value={statisticsPeriod} />
+          <button
+            type="button"
+            onClick={() => setEditing("new")}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:ring-offset-2"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Add provider
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -100,7 +101,7 @@ export function ProvidersView({
         <ProviderTable
           providers={filteredProviders}
           totalProviders={providers.length}
-          responseTimePeriod={responseTimePeriod}
+          statisticsPeriod={statisticsPeriod}
           pending={pending}
           testingProvider={testingProvider}
           onAdd={() => setEditing("new")}
