@@ -68,9 +68,9 @@ export function ProviderTable({
               <DataTableHead>
                 <TableFilter label="Provider" parameter="query" placeholder="Search providers" />
               </DataTableHead>
-              <DataTableHead>Endpoint</DataTableHead>
+              <DataTableHead>Base URL</DataTableHead>
               <DataTableHead>Protocols</DataTableHead>
-              <DataTableHead>Avg response</DataTableHead>
+              <DataTableHead>Avg TTFB</DataTableHead>
               <DataTableHead>Status</DataTableHead>
               <DataTableHead pinned="right">Actions</DataTableHead>
             </DataTableHeaderRow>

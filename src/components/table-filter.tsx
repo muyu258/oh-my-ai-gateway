@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronDown, Filter, X } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FloatingInput } from "./floating-input";
+import { Select } from "./select";
 
 type FilterOption = {
   label: string;
@@ -92,7 +93,13 @@ export function TableFilter({
   useEffect(() => {
     const closeOnOutsideClick = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!containerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+      const inSelectContent =
+        target instanceof Element && Boolean(target.closest("[data-select-content]"));
+      if (
+        !containerRef.current?.contains(target) &&
+        !menuRef.current?.contains(target) &&
+        !inSelectContent
+      ) {
         setOpen(false);
         setMenuPosition(null);
       }
@@ -169,21 +176,18 @@ export function TableFilter({
             >
               <span className="relative block">
                 {options ? (
-                  <select
-                    aria-label={label}
+                  <Select
+                    ariaLabel={label}
                     value={draft}
-                    onChange={(event) => {
-                      setDraft(event.target.value);
-                      navigate(event.target.value);
+                    onValueChange={(value) => {
+                      setDraft(value);
+                      navigate(value);
                     }}
-                    className="h-9 w-full appearance-none rounded-lg border border-[#d0d5dd] bg-white py-0 pl-3 pr-9 text-sm font-normal text-[#344054] outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-[#bae6fd]"
-                  >
-                    {options.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={options}
+                    size="sm"
+                    className={`w-full font-normal ${clearable ? "pr-9" : ""}`}
+                    hideChevron={clearable}
+                  />
                 ) : (
                   <FloatingInput
                     label={label}
@@ -207,11 +211,6 @@ export function TableFilter({
                   >
                     <X className="size-3.5" aria-hidden="true" />
                   </button>
-                ) : options ? (
-                  <ChevronDown
-                    className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#667085]"
-                    aria-hidden="true"
-                  />
                 ) : null}
               </span>
             </div>,

@@ -258,9 +258,9 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
         </DataTable>
       }
     >
-      <DataTable className="table-fixed text-center">
+      <DataTable className={`table-fixed text-center ${records.length ? "" : "h-full flex-1"}`}>
         <UsageTableColumns />
-        <DataTableBody>
+        <DataTableBody className={records.length ? undefined : "h-full"}>
           {records.length ? (
             records.map((record) => {
               const timestamp = formatDate(record.startAt);

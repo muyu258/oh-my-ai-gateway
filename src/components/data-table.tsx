@@ -106,11 +106,11 @@ export function DataTableEmptyState({
   className?: string;
 }) {
   return (
-    <tr>
-      <td colSpan={colSpan}>
+    <tr className="h-full">
+      <td className="h-full" colSpan={colSpan}>
         <div
           className={classes(
-            "flex min-h-72 flex-col items-center justify-center px-6 py-12 text-center",
+            "flex h-full min-h-72 flex-col items-center justify-center px-6 py-12 text-center",
             className,
           )}
         >

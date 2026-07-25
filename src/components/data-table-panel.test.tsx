@@ -8,6 +8,7 @@ describe("DataTablePanel horizontal scroll state", () => {
     const markup = renderToStaticMarkup(<DataTablePanel header="Header">Body</DataTablePanel>);
 
     expect(markup).toContain("data-table-panel");
+    expect(markup).toContain("flex min-h-full flex-col");
     expect(markup).not.toContain("data-hidden-right");
   });
 

@@ -79,7 +79,7 @@ export function DataTablePanel({
         className="data-table-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
         onScroll={syncHeader}
       >
-        <div ref={bodyContentRef} style={{ minWidth }}>
+        <div ref={bodyContentRef} className="flex min-h-full flex-col" style={{ minWidth }}>
           {children}
         </div>
       </div>

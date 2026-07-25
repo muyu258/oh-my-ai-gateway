@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio --config src/lib/database/drizzle/config.ts"
   },
   "dependencies": {
+    "@radix-ui/react-select": "2.3.7",
     "@scalar/api-reference-react": "0.9.58",
     "@uiw/react-json-view": "2.0.0-alpha.43",
     "better-sqlite3": "13.0.1",
