@@ -25,6 +25,24 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+:where(button:not([data-form-control]), a[href], [role="button"], [data-focus-control]):focus {
+  outline: none;
+}
+
+:where(
+  button:not([data-form-control]),
+  a[href],
+  [role="button"],
+  [data-focus-control]
+):focus-visible {
+  outline: 2px solid var(--control-focus-color, #0071e3);
+  outline-offset: 2px;
+}
+
+[data-focus-theme="dark"] {
+  --control-focus-color: #64d2ff;
+}
+
 .embedded-api-reference > div {
   min-height: 100%;
 }

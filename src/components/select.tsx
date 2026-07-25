@@ -47,6 +47,7 @@ export function Select<T extends string>({
     >
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
+        data-form-control
         className={`inline-flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-[#d0d5dd] bg-white font-medium text-[#344054] outline-none transition hover:bg-[#f9fafb] focus:border-[#0284c7] focus:ring-2 focus:ring-[#bae6fd] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 ${sizeClassName} ${className}`}
       >
         {icon ? <span className="shrink-0 text-[#667085]">{icon}</span> : null}

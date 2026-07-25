@@ -68,7 +68,7 @@ export function ProtocolBindingEditor({
                 aria-label={`${checked ? "Disable" : "Enable"} ${option.label}`}
                 aria-pressed={checked}
                 title={`${checked ? "Disable" : "Enable"} ${option.label}`}
-                className="absolute inset-0 rounded-[7px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7dd3fc] focus-visible:ring-inset"
+                className="absolute inset-0 rounded-[7px]"
               />
 
               <ProtocolIcon

@@ -22,7 +22,7 @@ const LogoutForm = () => (
   <form action="/api/auth/logout" method="post">
     <button
       type="submit"
-      className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-red-500 transition hover:bg-[#f8fafc] hover:text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#0284c7]"
+      className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-red-500 transition hover:bg-[#f8fafc] hover:text-[#111827]"
     >
       <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
       <span>Sign out</span>

@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { UsageRecordDetails } from "./usage-record-row";
+import { UsageRecordDetails, UsageRecordRow } from "./usage-record-row";
 
 describe("UsageRecordDetails", () => {
   test("renders only usage JSON without requesting stored content", () => {
@@ -26,5 +26,22 @@ describe("UsageRecordDetails", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test("marks an interactive row for the shared keyboard focus style", () => {
+    const markup = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <UsageRecordRow recordId="usage-1" recordJson="{}">
+            <td>Usage record</td>
+          </UsageRecordRow>
+        </tbody>
+      </table>,
+    );
+
+    expect(markup).toContain('data-focus-control="true"');
+    expect(markup).toContain('tabindex="0"');
+    expect(markup).not.toContain("focus-visible:bg");
+    expect(markup).not.toContain("focus-visible:ring");
   });
 });

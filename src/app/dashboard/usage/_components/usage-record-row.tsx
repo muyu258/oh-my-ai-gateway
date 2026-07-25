@@ -26,13 +26,16 @@ export function UsageRecordDetails({
 
   return (
     <>
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-md bg-[#2c2c2e] p-1 shadow-sm">
+      <div
+        data-focus-theme="dark"
+        className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-md bg-[#2c2c2e] p-1 shadow-sm"
+      >
         <button
           type="button"
           onClick={copyUsage}
           aria-label="Copy usage JSON"
           title={copied ? "Copied" : "Copy usage JSON"}
-          className="flex size-7 items-center justify-center text-[#aeaeb2] transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#64d2ff]"
+          className="flex size-7 items-center justify-center text-[#aeaeb2] transition hover:text-white"
         >
           {copied ? (
             <Check className="size-3.5 text-[#30d158]" aria-hidden="true" />
@@ -45,7 +48,7 @@ export function UsageRecordDetails({
           onClick={onClose}
           aria-label="Close"
           title="Close"
-          className="flex size-7 items-center justify-center text-[#aeaeb2] transition hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#64d2ff]"
+          className="flex size-7 items-center justify-center text-[#aeaeb2] transition hover:text-white"
         >
           <X className="size-3.5" strokeWidth={2.25} aria-hidden="true" />
         </button>
@@ -81,11 +84,13 @@ export function UsageRecordRow({
   return (
     <>
       <DataTableRow
+        data-focus-control
         tabIndex={0}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen(true)}
         onKeyDown={openWithKeyboard}
         aria-label={`View usage record ${recordId}`}
-        className="cursor-pointer focus-visible:bg-[#f0f9ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#38bdf8]"
+        className="cursor-pointer"
       >
         {children}
       </DataTableRow>

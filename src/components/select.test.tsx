@@ -21,6 +21,7 @@ describe("Select", () => {
     );
 
     expect(markup).toContain('aria-label="Statistics period"');
+    expect(markup).toContain('data-form-control="true"');
     expect(markup).toContain("Last day");
     expect(markup).toContain("ml-auto");
   });

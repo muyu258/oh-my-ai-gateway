@@ -81,7 +81,7 @@ export function ProvidersView({
           <button
             type="button"
             onClick={() => setEditing("new")}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:ring-offset-2"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
           >
             <Plus className="size-4" aria-hidden="true" />
             Add provider

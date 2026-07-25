@@ -193,7 +193,7 @@ export function Modal({
                 onClick={onClose}
                 aria-label="Close"
                 title="Close"
-                className="flex size-7 shrink-0 items-center justify-center text-[#86868b] transition hover:text-[#1d1d1f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0071e3]"
+                className="flex size-7 shrink-0 items-center justify-center text-[#86868b] transition hover:text-[#1d1d1f]"
               >
                 <X className="size-3.5" strokeWidth={2.25} aria-hidden="true" />
               </button>

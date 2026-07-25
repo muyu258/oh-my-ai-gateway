@@ -127,7 +127,7 @@ export function ProviderForm({
                     aria-label={`Use ${model} as test model`}
                     title={selected ? "Selected test model" : "Use as test model"}
                     onClick={() => setForm((current) => ({ ...current, testModel: model }))}
-                    className="flex h-full min-w-0 items-center rounded-l-md pl-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]"
+                    className="flex h-full min-w-0 items-center rounded-l-md pl-2.5"
                   >
                     <span className="max-w-56 truncate">{model}</span>
                   </button>
@@ -142,7 +142,7 @@ export function ProviderForm({
                     }}
                     aria-label={`Remove ${model}`}
                     title="Remove model"
-                    className={`group/remove ml-1 flex size-6 shrink-0 items-center justify-center rounded transition focus:opacity-100 ${
+                    className={`group/remove ml-1 flex size-6 shrink-0 items-center justify-center rounded transition focus-visible:opacity-100 ${
                       selected
                         ? "text-[#0284c7] hover:bg-[#bae6fd] hover:text-[#075985]"
                         : "text-[#98a2b3] opacity-100 hover:bg-[#e4e7ec] hover:text-[#475467] sm:opacity-0 sm:group-hover:opacity-100"
@@ -210,7 +210,7 @@ export function ProviderForm({
             onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
             className="peer sr-only"
           />
-          <span className="relative h-6 w-11 shrink-0 rounded-full bg-[#d0d5dd] transition peer-checked:bg-[#0284c7] peer-focus-visible:ring-2 peer-focus-visible:ring-[#7dd3fc] peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition peer-checked:after:translate-x-5" />
+          <span className="relative h-6 w-11 shrink-0 rounded-full bg-[#d0d5dd] transition peer-checked:bg-[#0284c7] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#0071e3] after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition peer-checked:after:translate-x-5" />
           <span className="text-sm font-medium text-[#344054]">Enabled</span>
         </label>
         <div className="ml-auto flex gap-3">

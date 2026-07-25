@@ -145,7 +145,7 @@ export function ProviderTable({
                     title={provider.enabled ? "Disable" : "Enable"}
                     disabled={pending}
                     onClick={() => onToggle(provider)}
-                    className={`relative h-6 w-11 rounded-full transition focus:outline-none focus:ring-2 focus:ring-[#7dd3fc] focus:ring-offset-2 disabled:opacity-50 ${provider.enabled ? "bg-[#0284c7]" : "bg-[#d0d5dd]"}`}
+                    className={`relative h-6 w-11 rounded-full transition disabled:opacity-50 ${provider.enabled ? "bg-[#0284c7]" : "bg-[#d0d5dd]"}`}
                   >
                     <span
                       className={`absolute top-0.5 flex size-5 items-center justify-center rounded-full bg-white shadow-sm transition ${provider.enabled ? "left-5" : "left-0.5"}`}

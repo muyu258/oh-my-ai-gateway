@@ -68,7 +68,7 @@ export default async function AuthPage({
 
           <button
             type="submit"
-            className="mt-6 flex h-14 w-full items-center justify-center rounded-lg bg-[#0f172a] px-4 text-base font-semibold text-white transition hover:bg-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:ring-offset-2 active:bg-[#020617]"
+            className="mt-6 flex h-14 w-full items-center justify-center rounded-lg bg-[#0f172a] px-4 text-base font-semibold text-white transition hover:bg-[#1e293b] active:bg-[#020617]"
           >
             Sign in
           </button>

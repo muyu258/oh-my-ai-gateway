@@ -155,7 +155,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
               href={pageHref(queryParams, currentPage - 1)}
               aria-label="Previous page"
               title="Previous page"
-              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0071e3]"
+              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08]"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />
             </Link>
@@ -172,7 +172,7 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
               href={pageHref(queryParams, currentPage + 1)}
               aria-label="Next page"
               title="Next page"
-              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0071e3]"
+              className="flex size-8 items-center justify-center rounded-md text-[#3a3a3c] transition duration-150 ease-out hover:bg-black/[0.05] active:scale-95 active:bg-black/[0.08]"
             >
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
