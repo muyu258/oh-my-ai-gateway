@@ -6,14 +6,14 @@ import { useState } from "react";
 
 import { FloatingInput } from "#/components/floating-input";
 import { FormSectionCard } from "#/components/form-section-card";
-import type { ProviderSummary } from "#/lib/database/provider.repository";
 import type { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { ProviderFormInput } from "../provider-form.types";
+import { ProviderModelTag } from "./provider-model-tag";
 import { ProtocolBindingEditor, type ProtocolAction } from "./protocol-binding-editor";
 import { sortModels } from "./provider-view.helpers";
 
 export function ProviderForm({
-  provider,
+  hasPersistedProvider,
   form,
   models,
   pending,
@@ -25,7 +25,7 @@ export function ProviderForm({
   onClose,
   onSubmit,
 }: {
-  provider?: ProviderSummary;
+  hasPersistedProvider: boolean;
   form: ProviderFormInput;
   models: string[];
   pending: boolean;
@@ -80,38 +80,14 @@ export function ProviderForm({
             <FloatingInput
               label="API token"
               type="password"
-              required={!provider}
+              required={!hasPersistedProvider}
               autoComplete="new-password"
               value={form.providerToken}
               onChange={(event) => setForm({ ...form, providerToken: event.target.value })}
-              placeholder={provider ? "Unchanged" : "sk-..."}
+              placeholder={hasPersistedProvider ? "Unchanged" : "sk-..."}
               containerClassName="sm:col-span-2"
               inputClassName="font-mono"
             />
-          </div>
-        </FormSectionCard>
-
-        <FormSectionCard title="Cost pricing">
-          <div className="grid gap-5">
-            <FloatingInput
-              label="Cost multiplier"
-              required
-              inputMode="decimal"
-              value={form.costMultiplier}
-              onChange={(event) => setForm({ ...form, costMultiplier: event.target.value })}
-              placeholder="1"
-              inputClassName="font-mono"
-            />
-            <label className="grid gap-2 text-sm font-medium text-[#344054]">
-              Pricing overrides
-              <textarea
-                value={form.pricingOverrides}
-                onChange={(event) => setForm({ ...form, pricingOverrides: event.target.value })}
-                spellCheck={false}
-                rows={10}
-                className="min-h-44 w-full resize-y rounded-md border border-[#d0d5dd] bg-white px-3 py-2.5 font-mono text-xs leading-5 text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.05)] outline-none transition focus:border-[#7dd3fc] focus:ring-2 focus:ring-[#bae6fd]"
-              />
-            </label>
           </div>
         </FormSectionCard>
 
@@ -137,57 +113,53 @@ export function ProviderForm({
             {models.map((model) => {
               const selected = form.testModel === model;
               return (
-                <span
+                <ProviderModelTag
                   key={model}
-                  className={`group inline-flex h-8 max-w-full items-center rounded-md pr-1 font-mono text-xs shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition ${
-                    selected
-                      ? "bg-[#e0f2fe] text-[#0369a1] ring-1 ring-inset ring-[#7dd3fc]"
-                      : "bg-white text-[#344054]"
-                  }`}
+                  tone={selected ? "accent" : "neutral"}
+                  width="content"
+                  disabled={pending}
+                  pressed={selected}
+                  ariaLabel={`Use ${model} as test model`}
+                  title={selected ? "Selected test model" : "Use as test model"}
+                  onClick={() => setForm((current) => ({ ...current, testModel: model }))}
+                  trailingAction={
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        const nextModels = models.filter((currentModel) => currentModel !== model);
+                        setModels(nextModels);
+                        if (form.testModel === model) {
+                          setForm((current) => ({ ...current, testModel: nextModels[0] ?? "" }));
+                        }
+                      }}
+                      aria-label={`Remove ${model}`}
+                      title="Remove model"
+                      className={`group/remove flex size-6 items-center justify-center rounded outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0284c7] disabled:cursor-not-allowed disabled:opacity-50 ${
+                        selected
+                          ? "text-[#0284c7] hover:bg-[#bae6fd] hover:text-[#075985]"
+                          : "text-[#98a2b3] opacity-100 hover:bg-[#e4e7ec] hover:text-[#475467] sm:opacity-0 sm:group-hover:opacity-100"
+                      }`}
+                    >
+                      {selected ? (
+                        <>
+                          <PlugZap
+                            className="size-3.5 group-hover/remove:hidden group-focus-visible/remove:hidden"
+                            aria-hidden="true"
+                          />
+                          <X
+                            className="hidden size-3.5 group-hover/remove:block group-focus-visible/remove:block"
+                            aria-hidden="true"
+                          />
+                        </>
+                      ) : (
+                        <X className="size-3.5" aria-hidden="true" />
+                      )}
+                    </button>
+                  }
                 >
-                  <button
-                    type="button"
-                    aria-pressed={selected}
-                    aria-label={`Use ${model} as test model`}
-                    title={selected ? "Selected test model" : "Use as test model"}
-                    onClick={() => setForm((current) => ({ ...current, testModel: model }))}
-                    className="flex h-full min-w-0 items-center rounded-l-md pl-2.5"
-                  >
-                    <span className="max-w-56 truncate">{model}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextModels = models.filter((currentModel) => currentModel !== model);
-                      setModels(nextModels);
-                      if (form.testModel === model) {
-                        setForm((current) => ({ ...current, testModel: nextModels[0] ?? "" }));
-                      }
-                    }}
-                    aria-label={`Remove ${model}`}
-                    title="Remove model"
-                    className={`group/remove ml-1 flex size-6 shrink-0 items-center justify-center rounded transition focus-visible:opacity-100 ${
-                      selected
-                        ? "text-[#0284c7] hover:bg-[#bae6fd] hover:text-[#075985]"
-                        : "text-[#98a2b3] opacity-100 hover:bg-[#e4e7ec] hover:text-[#475467] sm:opacity-0 sm:group-hover:opacity-100"
-                    }`}
-                  >
-                    {selected ? (
-                      <>
-                        <PlugZap
-                          className="size-3.5 group-hover:hidden group-focus-visible/remove:hidden"
-                          aria-hidden="true"
-                        />
-                        <X
-                          className="hidden size-3.5 group-hover:block group-focus-visible/remove:block"
-                          aria-hidden="true"
-                        />
-                      </>
-                    ) : (
-                      <X className="size-3.5" aria-hidden="true" />
-                    )}
-                  </button>
-                </span>
+                  {model}
+                </ProviderModelTag>
               );
             })}
             <input
@@ -208,12 +180,36 @@ export function ProviderForm({
         <FormSectionCard title="Protocols">
           <ProtocolBindingEditor
             form={form}
-            hasPersistedProvider={Boolean(provider)}
+            hasPersistedProvider={hasPersistedProvider}
             pending={pending}
             activeAction={activeProtocolAction}
             onChange={setForm}
             onAction={onProtocolAction}
           />
+        </FormSectionCard>
+
+        <FormSectionCard title="Cost pricing">
+          <div className="grid gap-5">
+            <FloatingInput
+              label="Cost multiplier"
+              required
+              inputMode="decimal"
+              value={form.costMultiplier}
+              onChange={(event) => setForm({ ...form, costMultiplier: event.target.value })}
+              placeholder="1"
+              inputClassName="font-mono"
+            />
+            <label className="grid gap-2 text-sm font-medium text-[#344054]">
+              Pricing overrides
+              <textarea
+                value={form.pricingOverrides}
+                onChange={(event) => setForm({ ...form, pricingOverrides: event.target.value })}
+                spellCheck={false}
+                rows={10}
+                className="min-h-44 w-full resize-y rounded-md border border-[#d0d5dd] bg-white px-3 py-2.5 font-mono text-xs leading-5 text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.05)] outline-none transition focus:border-[#7dd3fc] focus:ring-2 focus:ring-[#bae6fd]"
+              />
+            </label>
+          </div>
         </FormSectionCard>
 
         {error ? (
@@ -244,7 +240,7 @@ export function ProviderForm({
             disabled={pending}
             className="h-9 rounded-md border border-black/10 bg-white px-4 text-sm font-medium text-[#1d1d1f] shadow-sm transition hover:bg-[#f5f5f7] disabled:opacity-50"
           >
-            Cancel
+            {hasPersistedProvider ? "Close" : "Cancel"}
           </button>
           <button
             type="submit"

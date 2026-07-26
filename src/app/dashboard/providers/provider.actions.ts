@@ -10,6 +10,7 @@ import {
   deleteProvider,
   getProvider,
   setProviderEnabled,
+  moveProviderOrder,
   updateProvider,
 } from "#/lib/database/provider.repository";
 import { discoverProviderModels, testProviderProtocol } from "#/lib/provider/provider-discovery";
@@ -17,6 +18,7 @@ import { ProtocolType } from "#/lib/protocol/protocol.types";
 import { multiplierSchema, pricingOverridesSchema } from "#/lib/pricing/pricing.types";
 import type {
   ProviderActionResult,
+  CreateProviderActionResult,
   ProviderConnectionResult,
   ProviderFormInput,
   ProviderTestResult,
@@ -24,6 +26,7 @@ import type {
 
 const nameSchema = z.string().trim().min(1, "Name is required.");
 const providerIdSchema = z.uuid("Invalid provider ID.");
+const providerOrderPlacementSchema = z.enum(["before", "after"]);
 
 const invalidateProviders = (): void => {
   updateTag("providers");
@@ -92,7 +95,7 @@ const normalizeInput = (input: ProviderFormInput) => {
   };
 };
 
-const errorResult = (error: unknown): ProviderActionResult => {
+const errorResult = (error: unknown): Extract<ProviderActionResult, { ok: false }> => {
   if (error instanceof z.ZodError) {
     return { ok: false, error: error.issues[0]?.message ?? "Invalid provider configuration." };
   }
@@ -111,20 +114,20 @@ const errorResult = (error: unknown): ProviderActionResult => {
 
 export const createProviderAction = async (
   input: ProviderFormInput,
-): Promise<ProviderActionResult> => {
+): Promise<CreateProviderActionResult> => {
   try {
     const parsed = providerSchema
       .extend({ providerToken: z.string().min(1, "API token is required.") })
       .parse(normalizeInput(input));
     const { providerToken, ...provider } = parsed;
-    await createProvider({
+    const providerId = await createProvider({
       ...provider,
       token: providerToken,
       websiteUrl: parsed.websiteUrl || null,
       baseUrl: parsed.baseUrl || null,
     });
     invalidateProviders();
-    return { ok: true };
+    return { ok: true, providerId };
   } catch (error) {
     return errorResult(error);
   }
@@ -215,5 +218,23 @@ export const deleteProviderAction = async (providerId: string): Promise<Provider
     return { ok: true };
   } catch (error) {
     return errorResult(error);
+  }
+};
+
+export const moveProviderOrderAction = async (
+  sourceProviderId: string,
+  targetProviderId: string,
+  placement: "before" | "after",
+): Promise<ProviderActionResult> => {
+  try {
+    const [sourceId, targetId, parsedPlacement] = z
+      .tuple([providerIdSchema, providerIdSchema, providerOrderPlacementSchema])
+      .parse([sourceProviderId, targetProviderId, placement]);
+    await moveProviderOrder(sourceId, targetId, parsedPlacement);
+    invalidateProviders();
+    return { ok: true };
+  } catch (error) {
+    console.error("Provider priority update failed", error);
+    return { ok: false, error: "The provider priority could not be saved." };
   }
 };

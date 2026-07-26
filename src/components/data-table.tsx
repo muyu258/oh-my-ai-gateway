@@ -1,4 +1,9 @@
-import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
+import type {
+  ComponentPropsWithRef,
+  ComponentPropsWithoutRef,
+  CSSProperties,
+  ReactNode,
+} from "react";
 
 const classes = (...values: Array<string | undefined>): string => values.filter(Boolean).join(" ");
 
@@ -66,7 +71,7 @@ export function DataTableBody({ className, ...props }: ComponentPropsWithoutRef<
   return <tbody className={classes("divide-y divide-[#eef0f3]", className)} {...props} />;
 }
 
-export function DataTableRow({ className, ...props }: ComponentPropsWithoutRef<"tr">) {
+export function DataTableRow({ className, ...props }: ComponentPropsWithRef<"tr">) {
   return (
     <tr
       className={classes(

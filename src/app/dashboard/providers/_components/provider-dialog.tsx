@@ -34,27 +34,29 @@ export function ProviderDialog({
   const [activeProtocolAction, setActiveProtocolAction] = useState<ProtocolAction | null>(null);
   const [modelDiscovery, setModelDiscovery] = useState<ModelDiscovery | null>(null);
   const [form, setForm] = useState<ProviderFormInput>(() => createProviderForm(provider));
+  const [providerId, setProviderId] = useState(provider?.id ?? null);
 
   const formInput = (nextModels = models): ProviderFormInput =>
     toProviderFormInput(form, nextModels);
 
   const runProtocolAction = (protocol: ProtocolType, type: ProtocolAction["type"]) => {
-    if (!provider) return;
+    if (!providerId) return;
     setError("");
     setActiveProtocolAction({ protocol, type });
 
     startTransition(async () => {
       // Discovery and connection tests read persisted credentials, so save the current form first.
-      const saveResult = await updateProviderAction(provider.id, formInput());
+      const saveResult = await updateProviderAction(providerId, formInput());
       if (!saveResult.ok) {
         setError(saveResult.error);
         setActiveProtocolAction(null);
         return;
       }
+      setForm((current) => ({ ...current, providerToken: "" }));
       const savedName = form.name.trim();
 
       if (type === "test") {
-        const result = await testProviderProtocolAction(provider.id, protocol);
+        const result = await testProviderProtocolAction(providerId, protocol);
         setActiveProtocolAction(null);
         if (result.ok) {
           toast.success("Connection successful", {
@@ -66,40 +68,30 @@ export function ProviderDialog({
         return;
       }
 
-      const result = await discoverProviderModelsAction(provider.id, protocol);
+      const result = await discoverProviderModelsAction(providerId, protocol);
       setActiveProtocolAction(null);
       if (!result.ok) {
         setError(result.error);
         return;
       }
 
-      const existingModels = new Set(models);
       setModelDiscovery({
         protocol,
         models: result.models,
-        selected: result.models.filter((model) => !existingModels.has(model)),
+        selected: [],
       });
     });
   };
 
   const addDiscoveredModels = () => {
-    if (!modelDiscovery || !provider) return;
+    if (!modelDiscovery) return;
     const mergedModels = mergeModels(models, modelDiscovery.selected);
     setError("");
-
-    startTransition(async () => {
-      const result = await updateProviderAction(provider.id, formInput(mergedModels));
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setModels(mergedModels);
-      if (!form.testModel && mergedModels[0]) {
-        setForm((current) => ({ ...current, testModel: mergedModels[0] ?? "" }));
-      }
-      setModelDiscovery(null);
-      router.refresh();
-    });
+    setModels(mergedModels);
+    if (!form.testModel && mergedModels[0]) {
+      setForm((current) => ({ ...current, testModel: mergedModels[0] ?? "" }));
+    }
+    setModelDiscovery(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -108,29 +100,36 @@ export function ProviderDialog({
     const input = formInput();
 
     startTransition(async () => {
-      const result = provider
-        ? await updateProviderAction(provider.id, input)
+      const result = providerId
+        ? await updateProviderAction(providerId, input)
         : await createProviderAction(input);
       if (!result.ok) {
         setError(result.error);
+        toast.error("Provider not saved", { description: result.error });
         return;
       }
+      if (!providerId && "providerId" in result && typeof result.providerId === "string") {
+        setProviderId(result.providerId);
+      }
+      setForm((current) => ({ ...current, providerToken: "" }));
+      toast.success(providerId ? "Provider saved" : "Provider created", {
+        description: `${input.name} is ready to use.`,
+      });
       router.refresh();
-      onClose();
     });
   };
 
   return (
     <>
       <Modal
-        title={provider ? "Edit provider" : "Add provider"}
+        title={providerId ? "Edit provider" : "Add provider"}
         onClose={onClose}
         size="lg"
         panelClassName="h-[min(46rem,calc(100svh-1.5rem))] sm:h-[min(46rem,calc(100svh-2.5rem))]"
         bodyClassName="flex overflow-hidden p-0 sm:p-0"
       >
         <ProviderForm
-          provider={provider}
+          hasPersistedProvider={Boolean(providerId)}
           form={form}
           models={models}
           pending={pending}

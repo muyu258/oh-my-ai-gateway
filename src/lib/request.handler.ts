@@ -6,6 +6,7 @@ import { GatewayError, GatewayErrorCode, normalizeGatewayError } from "./errors/
 import { authByToken } from "#/lib/auth/auth";
 import { track } from "./usage/tracker";
 import { forwardResponse } from "./proxy/proxy.helpers";
+import { selectProvider } from "./provider/provider-routing";
 
 export const requestHandler = async ({
   request,
@@ -24,16 +25,8 @@ export const requestHandler = async ({
 
     const model = await getModel(request);
     const providers = await getProviders();
-    const matchingProviders = providers.filter(
-      (provider) =>
-        provider.enabled &&
-        provider.protocols[protocolType]?.enabled &&
-        provider.models.includes(model),
-    );
     const providerId = request.headers.get("x-provider-id");
-    const provider = providerId
-      ? matchingProviders.find(({ id }) => id === providerId)
-      : matchingProviders.at(0);
+    const provider = selectProvider(providers, protocolType, model, providerId);
     invariant(
       provider,
       new GatewayError(

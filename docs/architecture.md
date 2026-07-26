@@ -46,7 +46,7 @@ The main responsibilities are:
 - **Protocol adapters:** extract authentication and model metadata, build the upstream URL and
   authentication header, forward the native payload, parse usage, and shape model/error responses.
 - **Authentication:** compare every gateway credential to one configured shared token.
-- **Provider repository:** load name-sorted provider rows into a process-local cache and refresh it
+- **Provider repository:** load priority-sorted provider rows into a process-local cache and refresh it
   after dashboard mutations.
 - **Forwarder:** use the selected provider's base URL, protocol endpoint, and API token for `fetch`.
 - **Usage tracker:** observe a cloned response asynchronously and persist usage and estimated cost.
@@ -104,8 +104,8 @@ For a generation request, routing proceeds as follows:
 
 1. The adapter authenticates the protocol-specific header against the shared token.
 2. It reads the `model` field from the native JSON request.
-3. The provider repository returns its cached rows, loaded from SQLite in ascending provider-name
-   order.
+3. The provider repository returns its cached rows, loaded from SQLite in ascending provider
+   `order`.
 4. The handler filters for provider enabled, exact protocol enabled, and exact model membership.
 5. If `x-provider-id` is supplied, it selects that exact UUID among the filtered candidates.
 6. Otherwise it selects the first filtered candidate.
@@ -145,6 +145,7 @@ SQLite is accessed through Drizzle ORM. `SQLITE_DB_PATH` selects the database fi
 The `provider` table stores:
 
 - provider name and enablement;
+- unique routing priority (`order`), retained even while the provider is disabled;
 - model list and selected test model;
 - per-protocol endpoint and enablement configuration;
 - optional base URL and website URL;

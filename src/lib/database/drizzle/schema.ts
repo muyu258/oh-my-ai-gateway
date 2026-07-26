@@ -10,6 +10,7 @@ export const provider = sqliteTable("provider", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
+  order: integer("order").notNull().unique(),
   models: text("models", { mode: "json" }).$type<string[]>().notNull(),
   testModel: text("test_model"),
   protocols: text("protocols", { mode: "json" })

@@ -2,18 +2,26 @@
 
 import { Plus, ServerCog } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ClearFiltersButton } from "#/app/dashboard/_components/clear-filters-button";
 import { DashboardPageHeader } from "#/app/dashboard/_components/dashboard-page-header";
 import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
-import { testProviderProtocolAction, toggleProviderAction } from "../provider.actions";
+import {
+  moveProviderOrderAction,
+  testProviderProtocolAction,
+  toggleProviderAction,
+} from "../provider.actions";
 import { DeleteProviderDialog } from "./delete-provider-dialog";
 import { ProviderDialog } from "./provider-dialog";
 import { ProviderTable } from "./provider-table";
 import { ProviderStatisticsPeriodFilter } from "./provider-statistics-period-filter";
-import { firstEnabledProtocol } from "./provider-view.helpers";
+import {
+  firstEnabledProtocol,
+  moveProviderPriorities,
+  type ProviderOrderPlacement,
+} from "./provider-view.helpers";
 
 export function ProvidersView({
   providers,
@@ -29,20 +37,44 @@ export function ProvidersView({
   const [deleting, setDeleting] = useState<ProviderSummary | null>(null);
   const [actionError, setActionError] = useState("");
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [orderedProviders, setOrderedProviders] = useState(providers);
+  const [reorderPending, setReorderPending] = useState(false);
+  useEffect(() => setOrderedProviders(providers), [providers]);
   const activeFilters = Boolean(
     (searchParams.get("query") ?? "").trim() || statisticsPeriod !== "30m",
   );
 
   const filteredProviders = useMemo(() => {
     const normalizedQuery = (searchParams.get("query") ?? "").trim().toLowerCase();
-    if (!normalizedQuery) return providers;
-    return providers.filter((provider) =>
+    if (!normalizedQuery) return orderedProviders;
+    return orderedProviders.filter((provider) =>
       [provider.name, provider.websiteUrl ?? "", provider.baseUrl ?? "", ...provider.models]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [providers, searchParams]);
+  }, [orderedProviders, searchParams]);
+
+  const reorder = async (
+    sourceProviderId: string,
+    targetProviderId: string,
+    placement: ProviderOrderPlacement,
+  ) => {
+    const previous = orderedProviders;
+    const next = moveProviderPriorities(previous, sourceProviderId, targetProviderId, placement);
+    if (next === previous) return;
+
+    setOrderedProviders(next);
+    setReorderPending(true);
+    const result = await moveProviderOrderAction(sourceProviderId, targetProviderId, placement);
+    setReorderPending(false);
+    if (!result.ok) {
+      setOrderedProviders(previous);
+      toast.error("Priority not saved", { description: result.error });
+      return;
+    }
+    router.refresh();
+  };
 
   const toggle = (provider: ProviderSummary) => {
     setActionError("");
@@ -110,15 +142,16 @@ export function ProvidersView({
 
         <ProviderTable
           providers={filteredProviders}
-          totalProviders={providers.length}
+          totalProviders={orderedProviders.length}
           statisticsPeriod={statisticsPeriod}
-          pending={pending}
+          pending={pending || reorderPending}
           testingProvider={testingProvider}
           onAdd={() => setEditing("new")}
           onToggle={toggle}
           onTest={test}
           onEdit={setEditing}
           onDelete={setDeleting}
+          onReorder={reorder}
         />
       </div>
 

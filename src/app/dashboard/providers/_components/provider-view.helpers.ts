@@ -40,6 +40,42 @@ export const sortModels = (models: string[]): string[] =>
 export const mergeModels = (current: string[], selected: string[]): string[] =>
   sortModels([...new Set([...current, ...selected])]);
 
+export type DiscoveredModelState = "existing" | "selected" | "available";
+
+export const getDiscoveredModelState = (
+  model: string,
+  currentModels: ReadonlySet<string>,
+  selectedModels: ReadonlySet<string>,
+): DiscoveredModelState => {
+  if (currentModels.has(model)) return "existing";
+  return selectedModels.has(model) ? "selected" : "available";
+};
+
+export type ProviderOrderPlacement = "before" | "after";
+
+export const moveProviderPriorities = (
+  providers: ProviderSummary[],
+  sourceId: string,
+  targetId: string,
+  placement: ProviderOrderPlacement,
+): ProviderSummary[] => {
+  if (sourceId === targetId) return providers;
+  const sourceIndex = providers.findIndex(({ id }) => id === sourceId);
+  const targetIndex = providers.findIndex(({ id }) => id === targetId);
+  if (sourceIndex < 0 || targetIndex < 0) return providers;
+
+  const reordered = [...providers];
+  const [source] = reordered.splice(sourceIndex, 1);
+  const targetIndexWithoutSource = reordered.findIndex(({ id }) => id === targetId);
+  const insertionIndex = targetIndexWithoutSource + (placement === "after" ? 1 : 0);
+  reordered.splice(insertionIndex, 0, source);
+
+  if (reordered.every((provider, index) => provider.id === providers[index]?.id)) return providers;
+
+  const orderSlots = providers.map(({ order }) => order);
+  return reordered.map((provider, index) => ({ ...provider, order: orderSlots[index]! }));
+};
+
 export const toProviderFormInput = (
   form: ProviderFormInput,
   models: string[],

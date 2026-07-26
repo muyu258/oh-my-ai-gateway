@@ -2,8 +2,13 @@ import { and, asc, avg, eq, gte, isNotNull, sql, sum } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { Provider } from "#/lib/provider/provider.types";
-import { db } from "./drizzle/client";
+import { db, sqlite } from "./drizzle/client";
 import { provider, usage, type NewProviderRecord, type ProviderRecord } from "./drizzle/schema";
+import {
+  insertProviderWithNextOrder,
+  moveProviderOrderInDatabase,
+  type ProviderOrderPlacement,
+} from "./provider-priority.repository";
 
 export type ProviderStatisticsPeriod = "30m" | "1h" | "6h" | "24h" | "7d" | "30d" | "all";
 
@@ -27,6 +32,7 @@ export type ProviderSummary = Pick<
   ProviderRecord,
   | "id"
   | "name"
+  | "order"
   | "models"
   | "testModel"
   | "protocols"
@@ -45,9 +51,12 @@ export type ProviderSummary = Pick<
   costComplete: boolean;
 };
 
-type CreateProviderInput = NewProviderRecord;
+type CreateProviderInput = Omit<NewProviderRecord, "order">;
 
-type UpdateProviderInput = Omit<NewProviderRecord, "id" | "createdAt" | "updatedAt" | "token"> & {
+type UpdateProviderInput = Omit<
+  NewProviderRecord,
+  "id" | "order" | "createdAt" | "updatedAt" | "token"
+> & {
   token?: NewProviderRecord["token"];
 };
 
@@ -55,7 +64,7 @@ export const getProviders = async (): Promise<Provider[]> => {
   "use cache";
   cacheTag("providers");
   cacheLife("max");
-  return db.select().from(provider).orderBy(asc(provider.name));
+  return db.select().from(provider).orderBy(asc(provider.order));
 };
 
 const getProviderStatistics = async (period: ProviderStatisticsPeriod) => {
@@ -111,6 +120,7 @@ export const getProviderSummaries = async (
     const {
       id,
       name,
+      order,
       models,
       testModel,
       protocols,
@@ -125,6 +135,7 @@ export const getProviderSummaries = async (
     return {
       id,
       name,
+      order,
       models,
       testModel,
       protocols,
@@ -148,13 +159,25 @@ export const getProvider = async (id: string): Promise<Provider | undefined> => 
   return (await getProviders()).find((provider) => provider.id === id);
 };
 
-export const createProvider = async (input: CreateProviderInput): Promise<void> => {
+export const createProvider = async (input: CreateProviderInput): Promise<string> => {
   const models = sortModels(input.models);
-  await db.insert(provider).values({
-    ...input,
-    models,
-    testModel: getTestModel(models, input.testModel) ?? null,
-  });
+  const createdAt = input.createdAt instanceof Date ? input.createdAt : new Date();
+  const updatedAt = input.updatedAt instanceof Date ? input.updatedAt : createdAt;
+  return insertProviderWithNextOrder(sqlite, [
+    input.id ?? crypto.randomUUID(),
+    input.name,
+    JSON.stringify(models),
+    getTestModel(models, input.testModel) ?? null,
+    JSON.stringify(input.protocols),
+    input.websiteUrl ?? null,
+    input.baseUrl ?? null,
+    input.token,
+    (input.enabled ?? true) ? 1 : 0,
+    input.costMultiplier ?? "1",
+    JSON.stringify(input.pricingOverrides ?? {}),
+    createdAt.getTime(),
+    updatedAt.getTime(),
+  ]);
 };
 
 export const updateProvider = async (id: string, input: UpdateProviderInput): Promise<void> => {
@@ -176,4 +199,12 @@ export const setProviderEnabled = async (id: string, enabled: boolean): Promise<
 
 export const deleteProvider = async (id: string): Promise<void> => {
   await db.delete(provider).where(eq(provider.id, id));
+};
+
+export const moveProviderOrder = async (
+  sourceId: string,
+  targetId: string,
+  placement: ProviderOrderPlacement,
+): Promise<void> => {
+  moveProviderOrderInDatabase(sqlite, sourceId, targetId, placement);
 };

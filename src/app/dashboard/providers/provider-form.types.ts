@@ -19,6 +19,13 @@ export type ProviderActionResult =
       error: string;
     };
 
+export type CreateProviderActionResult =
+  | { ok: true; providerId: string }
+  | {
+      ok: false;
+      error: string;
+    };
+
 export type ProviderConnectionResult =
   | {
       ok: true;

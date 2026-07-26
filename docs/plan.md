@@ -121,7 +121,7 @@ upstream model.
 ### Current Evidence
 
 - Provider records and per-protocol configuration are durable.
-- Current name-ordered selection and `x-provider-id` provide a small local routing mechanism.
+- Current priority-ordered selection and `x-provider-id` provide a small local routing mechanism.
 - Protocol identities are explicit in code and provider configuration.
 
 ### Remaining Work

@@ -1,8 +1,12 @@
 "use client";
 
+import { Check, LockKeyhole } from "lucide-react";
+
 import { ProtocolIcon } from "#/components/icons/protocol";
 import { Modal } from "#/components/modal";
 import type { ProtocolType } from "#/lib/protocol/protocol.types";
+import { ProviderModelTag } from "./provider-model-tag";
+import { getDiscoveredModelState, sortModels } from "./provider-view.helpers";
 
 export type ModelDiscovery = {
   protocol: ProtocolType;
@@ -25,27 +29,39 @@ export function ModelDiscoveryDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const existing = new Set(currentModels);
-  const newModels = discovery.models.filter((model) => !existing.has(model));
+  const existingModels = new Set(currentModels);
+  const selectedModels = new Set(discovery.selected);
+  const selectableModels = discovery.models.filter((model) => !existingModels.has(model));
+  const existingCount = discovery.models.length - selectableModels.length;
 
   return (
     <Modal
       title="Discovered models"
-      description={`${discovery.models.length} returned · ${newModels.length} new`}
+      description={`${discovery.models.length} returned · ${existingCount} existing · ${discovery.selected.length} selected`}
       leading={<ProtocolIcon protocol={discovery.protocol} decorative />}
       onClose={onClose}
       size="md"
       layer="nested"
       footer={
         <>
-          <button
-            type="button"
-            disabled={!newModels.length || pending}
-            onClick={() => onChange(newModels)}
-            className="mr-auto text-sm font-medium text-[#0071e3] disabled:text-[#a1a1a6]"
-          >
-            Select all new
-          </button>
+          <div className="mr-auto flex items-center gap-3">
+            <button
+              type="button"
+              disabled={!selectableModels.length || pending}
+              onClick={() => onChange(sortModels(selectableModels))}
+              className="text-sm font-medium text-[#0071e3] disabled:text-[#a1a1a6]"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              disabled={!discovery.selected.length || pending}
+              onClick={() => onChange([])}
+              className="text-sm font-medium text-[#475467] disabled:text-[#a1a1a6]"
+            >
+              Deselect all
+            </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -58,45 +74,45 @@ export function ModelDiscoveryDialog({
             type="button"
             onClick={onConfirm}
             disabled={!discovery.selected.length || pending}
-            className="inline-flex h-9 min-w-28 items-center justify-center rounded-md bg-[#0071e3] px-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 min-w-24 items-center justify-center rounded-md bg-[#0071e3] px-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "Adding..." : `Add ${discovery.selected.length}`}
+            {`Add ${discovery.selected.length}`}
           </button>
         </>
       }
     >
       {discovery.models.length ? (
-        <div className="divide-y divide-black/[0.06]">
+        <div className="flex flex-wrap content-start items-start gap-2 p-1">
           {discovery.models.map((model) => {
-            const alreadyAdded = existing.has(model);
-            const selected = discovery.selected.includes(model);
+            const state = getDiscoveredModelState(model, existingModels, selectedModels);
+            const selected = state === "selected";
             return (
-              <label
+              <ProviderModelTag
                 key={model}
-                className={`flex min-h-11 items-center gap-3 rounded-md px-2 py-2 ${alreadyAdded ? "cursor-default" : "cursor-pointer hover:bg-[#f5f5f7]"}`}
+                tone={state === "existing" ? "muted" : selected ? "accent" : "neutral"}
+                width="fixed"
+                disabled={state === "existing" || pending}
+                pressed={state === "existing" ? undefined : selected}
+                ariaLabel={`${selected ? "Deselect" : "Select"} ${model}`}
+                onClick={() =>
+                  onChange(
+                    selected
+                      ? discovery.selected.filter((selectedModel) => selectedModel !== model)
+                      : sortModels([...discovery.selected, model]),
+                  )
+                }
+                leadingIcon={
+                  state === "existing" ? (
+                    <LockKeyhole className="size-3.5" aria-hidden="true" />
+                  ) : selected ? (
+                    <Check className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
+                  ) : (
+                    <span aria-hidden="true" />
+                  )
+                }
               >
-                <input
-                  type="checkbox"
-                  checked={alreadyAdded || selected}
-                  disabled={alreadyAdded}
-                  onChange={() =>
-                    onChange(
-                      selected
-                        ? discovery.selected.filter((selectedModel) => selectedModel !== model)
-                        : [...discovery.selected, model],
-                    )
-                  }
-                  className="size-4 accent-[#0071e3]"
-                />
-                <span className="min-w-0 flex-1 truncate font-mono text-sm text-[#3a3a3c]">
-                  {model}
-                </span>
-                <span
-                  className={`text-xs font-medium ${alreadyAdded ? "text-[#86868b]" : "text-[#248a3d]"}`}
-                >
-                  {alreadyAdded ? "Existing" : "New"}
-                </span>
-              </label>
+                {model}
+              </ProviderModelTag>
             );
           })}
         </div>

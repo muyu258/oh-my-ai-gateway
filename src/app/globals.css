@@ -97,6 +97,14 @@ body {
   content: "";
 }
 
+.provider-sortable-row[data-drag-state="target"] > td {
+  background: #f8fafc;
+}
+
+.provider-sortable-row[data-drag-state="active"] {
+  opacity: 0;
+}
+
 .data-table-panel[data-hidden-left="true"] .data-table-pinned-boundary-left::after {
   right: 0;
 }
@@ -130,5 +138,9 @@ body {
   .modal-backdrop,
   .modal-panel {
     animation: none;
+  }
+
+  .provider-sortable-row {
+    transition: none !important;
   }
 }

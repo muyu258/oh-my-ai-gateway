@@ -9,6 +9,7 @@ const model = "test-model";
 const provider: Provider = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
+  order: 1,
   models: [model],
   testModel: model,
   protocols: { [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true } },

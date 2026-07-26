@@ -9,6 +9,7 @@ const originalFetch = globalThis.fetch;
 const provider: Provider = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
+  order: 1,
   models: ["first-model", "second-model"],
   testModel: "second-model",
   protocols: {
