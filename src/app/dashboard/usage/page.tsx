@@ -26,7 +26,7 @@ import { DataTablePanel } from "#/components/data-table-panel";
 import { ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
 import { getUsages } from "#/lib/database/usage.repository";
-import type { UsageRecord } from "#/lib/database/usage.repository.core";
+import type { UsageRecord } from "#/lib/database/usage.repository";
 import { isUsagePeriodFilter, isUsageStatusFilter, isUsageStreamFilter } from "#/lib/usage/filters";
 import { isProtocolType, protocolOptions } from "#/lib/protocol/protocol.registry";
 

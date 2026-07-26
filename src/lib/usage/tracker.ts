@@ -1,9 +1,77 @@
 import { after } from "next/server";
 
+import type { NewUsage } from "#/lib/database/drizzle/schema";
 import { saveUsage } from "#/lib/database/usage.repository";
-import type { ProtocolAdapter } from "../protocol/adapter/adapter.types";
+import { calculateCost } from "#/lib/pricing/calculate-cost";
+import { emptyUsage } from "../protocol/adapter/adapter.helpers";
+import type { ParsedUsage, ProtocolAdapter } from "../protocol/adapter/adapter.types";
 import type { Provider } from "../provider/provider.types";
-import { processUsageTracking } from "./tracker.core";
+
+const isStreamingResponse = (response: Response): boolean =>
+  response.headers.get("content-type")?.toLowerCase().includes("text/event-stream") ?? false;
+
+const getClient = (request: Request): string | undefined =>
+  request.headers.get("user-agent") ?? undefined;
+
+const parseErrorBody = (body: string): unknown => {
+  if (!body) return undefined;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+};
+
+const processUsageTracking = async (
+  request: Request,
+  response: Response,
+  adapter: ProtocolAdapter,
+  provider: Provider,
+  model: string,
+  timing: { startedAt: Date; timeToFirstByteMs: number },
+): Promise<void> => {
+  const id = crypto.randomUUID();
+  const isStream = isStreamingResponse(response);
+  const { parseStreamingResponse, parseJsonResponse, protocolType } = adapter;
+
+  let usage: ParsedUsage = emptyUsage();
+  let error: unknown;
+  try {
+    if (response.ok) {
+      usage = await (isStream
+        ? parseStreamingResponse(response.clone())
+        : parseJsonResponse(response.clone()));
+    } else {
+      error = parseErrorBody(await response.clone().text());
+    }
+  } catch (parseError) {
+    error = parseError;
+  }
+
+  let cost: Pick<NewUsage, "costMicros" | "costStatus" | "costSnapshot">;
+  try {
+    cost = calculateCost(model, provider, usage);
+  } catch (costError) {
+    console.error(`Failed to calculate usage cost for provider '${provider.name}'`, costError);
+    cost = { costMicros: null, costStatus: "error", costSnapshot: undefined };
+  }
+
+  await saveUsage({
+    id,
+    providerId: provider.id,
+    model,
+    client: getClient(request),
+    protocolType,
+    status: response.status,
+    isStream,
+    error,
+    startAt: timing.startedAt,
+    timeToFirstByteMs: timing.timeToFirstByteMs,
+    endAt: new Date(),
+    ...cost,
+    ...usage,
+  });
+};
 
 export const track = (
   request: Request,
@@ -20,7 +88,6 @@ export const track = (
     provider,
     model,
     timing,
-    saveUsage,
   ).catch((error) => {
     console.error(`Failed to track usage for provider '${provider.name}'`, error);
   });
@@ -28,5 +95,3 @@ export const track = (
   // Persist usage after the response lifecycle without delaying the client response.
   after(() => trackingPromise);
 };
-
-export const trackUsage = track;

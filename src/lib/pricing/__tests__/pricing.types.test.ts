@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { modelPricingSchema, multiplierSchema } from "./pricing.types";
+import { modelPricingSchema, multiplierSchema } from "../pricing.types";
 
 describe("pricing validation", () => {
   test("rejects incomplete rates, excessive precision, invalid multiplier, and unordered tiers", () => {

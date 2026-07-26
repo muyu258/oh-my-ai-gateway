@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { ProtocolType } from "../protocol/protocol.types";
-import { discoverProviderModels, testProviderProtocol } from "./provider-discovery";
-import type { Provider } from "./provider.types";
+import { ProtocolType } from "../../protocol/protocol.types";
+import { discoverProviderModels, testProviderProtocol } from "../provider-discovery";
+import type { Provider } from "../provider.types";
 
 const originalFetch = globalThis.fetch;
 
@@ -80,65 +80,63 @@ describe("discoverProviderModels", () => {
 });
 
 describe("testProviderProtocol", () => {
-  test("uses the configured test model through the gateway chat route", async () => {
-    let upstreamRequest: Request | undefined;
-    globalThis.fetch = ((input, init) => {
-      upstreamRequest = new Request(input, init);
-      return Promise.resolve(Response.json({ choices: [] }));
-    }) as typeof fetch;
+  const cases: Array<{
+    name: string;
+    protocol: ProtocolType;
+    url: string;
+    credential: [string, string];
+    payload: Record<string, unknown>;
+  }> = [
+    {
+      name: "OpenAI Chat Completions",
+      protocol: ProtocolType.OpenaiCompatible,
+      url: "http://gateway.example/v1/chat/completions",
+      credential: ["authorization", "Bearer gateway-secret"],
+      payload: {
+        model: "second-model",
+        messages: [{ role: "user", content: "Reply with OK." }],
+        stream: false,
+      },
+    },
+    {
+      name: "OpenAI Responses",
+      protocol: ProtocolType.OpenaiResponse,
+      url: "http://gateway.example/v1/responses",
+      credential: ["authorization", "Bearer gateway-secret"],
+      payload: { model: "second-model", input: "Reply with OK.", stream: false },
+    },
+    {
+      name: "Anthropic Messages",
+      protocol: ProtocolType.Anthropic,
+      url: "http://gateway.example/v1/messages",
+      credential: ["x-api-key", "gateway-secret"],
+      payload: {
+        model: "second-model",
+        max_tokens: 1,
+        messages: [{ role: "user", content: "Reply with OK." }],
+        stream: false,
+      },
+    },
+  ];
 
-    const result = await testProviderProtocol(provider, ProtocolType.OpenaiCompatible, gateway);
-    const payload: unknown = await upstreamRequest?.json();
+  for (const connection of cases) {
+    test(`creates a non-streaming ${connection.name} request`, async () => {
+      let upstreamRequest: Request | undefined;
+      globalThis.fetch = ((input, init) => {
+        upstreamRequest = new Request(input, init);
+        return Promise.resolve(Response.json({ ok: true }));
+      }) as typeof fetch;
 
-    expect(result.model).toBe("second-model");
-    expect(upstreamRequest?.url).toBe("http://gateway.example/v1/chat/completions");
-    expect(upstreamRequest?.headers.get("authorization")).toBe("Bearer gateway-secret");
-    expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
-    expect(upstreamRequest?.headers.get("x-provider-name")).toBeNull();
-    expect(upstreamRequest?.headers.get("user-agent")).toBe("gateway/test");
-    expect(payload).toEqual({
-      model: "second-model",
-      messages: [{ role: "user", content: "Reply with OK." }],
-      stream: false,
+      const result = await testProviderProtocol(provider, connection.protocol, gateway);
+
+      expect(result.model).toBe("second-model");
+      expect(upstreamRequest?.url).toBe(connection.url);
+      expect(upstreamRequest?.headers.get(connection.credential[0])).toBe(connection.credential[1]);
+      expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
+      expect(upstreamRequest?.headers.get("user-agent")).toBe("gateway/test");
+      expect(await upstreamRequest?.json()).toEqual(connection.payload);
     });
-  });
-
-  test("creates a non-stream Responses request", async () => {
-    let upstreamRequest: Request | undefined;
-    globalThis.fetch = ((input, init) => {
-      upstreamRequest = new Request(input, init);
-      return Promise.resolve(Response.json({ id: "response-test" }));
-    }) as typeof fetch;
-
-    await testProviderProtocol(provider, ProtocolType.OpenaiResponse, gateway);
-
-    expect(upstreamRequest?.url).toBe("http://gateway.example/v1/responses");
-    expect(await upstreamRequest?.json()).toEqual({
-      model: "second-model",
-      input: "Reply with OK.",
-      stream: false,
-    });
-  });
-
-  test("creates a non-stream Anthropic request with protocol headers", async () => {
-    let upstreamRequest: Request | undefined;
-    globalThis.fetch = ((input, init) => {
-      upstreamRequest = new Request(input, init);
-      return Promise.resolve(Response.json({ id: "message-test" }));
-    }) as typeof fetch;
-
-    await testProviderProtocol(provider, ProtocolType.Anthropic, gateway);
-
-    expect(upstreamRequest?.url).toBe("http://gateway.example/v1/messages");
-    expect(upstreamRequest?.headers.get("x-api-key")).toBe("gateway-secret");
-    expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
-    expect(await upstreamRequest?.json()).toEqual({
-      model: "second-model",
-      max_tokens: 1,
-      messages: [{ role: "user", content: "Reply with OK." }],
-      stream: false,
-    });
-  });
+  }
 
   test("falls back to the first model when no test model is configured", async () => {
     globalThis.fetch = ((_input, _init) =>

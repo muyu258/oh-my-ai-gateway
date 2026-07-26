@@ -1,6 +1,6 @@
-import { collectModels } from "#/lib/provider/provider.helpers";
 import { GatewayErrorCode } from "#/lib/errors/gateway-error";
 import type { ProtocolAdapter } from "../../adapter.types";
+import { collectModels } from "../../adapter.helpers";
 
 type ModelsResponse = ProtocolAdapter["createModelsResponse"];
 type ErrorResponse = ProtocolAdapter["createErrorResponse"];

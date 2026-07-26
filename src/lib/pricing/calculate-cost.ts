@@ -15,7 +15,7 @@ export type CostSnapshot = {
   rates: Rates;
 };
 
-export type CostResult = {
+type CostResult = {
   costMicros: number | null;
   costStatus: Exclude<CostStatus, "error">;
   costSnapshot: CostSnapshot;
@@ -37,28 +37,21 @@ const resolveModelPricing = (model: string, provider: Provider): ModelPricing =>
   );
 };
 
-const selectRates = (
-  pricing: ModelPricing,
-  usage: ParsedUsage,
-): { rates: Rates; threshold: number | null; assumption: "measured" | "base" } => {
+const selectRates = (pricing: ModelPricing, usage: ParsedUsage): Rates => {
   const inputParts = [
     usage.inputTokens,
     usage.cacheReadInputTokens,
     usage.cacheCreationInputTokens,
   ];
   if (inputParts.some((value) => value === null)) {
-    return { rates: pricing.rates, threshold: null, assumption: "base" };
+    return pricing.rates;
   }
 
   const totalInput = inputParts.reduce<number>((sum, value) => sum + (value ?? 0), 0);
   const tier = [...(pricing.tiers ?? [])]
     .reverse()
     .find(({ inputTokensAbove }) => totalInput > inputTokensAbove);
-  return {
-    rates: tier?.rates ?? pricing.rates,
-    threshold: tier?.inputTokensAbove ?? null,
-    assumption: "measured",
-  };
+  return tier?.rates ?? pricing.rates;
 };
 
 export const calculateCost = (
@@ -68,7 +61,7 @@ export const calculateCost = (
 ): CostResult => {
   const multiplier = multiplierSchema.parse(provider.costMultiplier);
   const pricing = resolveModelPricing(model, provider);
-  const { rates } = selectRates(pricing, usage);
+  const rates = selectRates(pricing, usage);
   const components = {
     input: { tokens: usage.inputTokens, rate: rates.input },
     output: { tokens: usage.outputTokens, rate: rates.output },

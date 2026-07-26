@@ -1,8 +1,8 @@
-import { GatewayError } from "#/lib/errors/gateway-error";
-import { Provider } from "#/lib/provider/provider.types";
+import type { GatewayError } from "#/lib/errors/gateway-error";
+import type { Provider } from "#/lib/provider/provider.types";
 import { ProtocolType } from "../protocol.types";
 
-export type TransformerParams = {
+type TransformerParams = {
   request: Request;
   options: {
     token: string;

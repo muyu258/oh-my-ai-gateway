@@ -51,9 +51,9 @@ usage in the dashboard.
 - SQLite migrations, provider CRUD, enablement, protocol configuration, model discovery, connection
   testing, and usage views are present.
 - Provider selection filters enabled records by exact protocol and model, with an optional
-  `x-provider-name` constraint.
-- Unit tests cover adapter parsing, forwarding helpers, discovery, repository behavior, migrations,
-  and cost calculation.
+  `x-provider-id` constraint.
+- Unit tests cover pricing validation and cost calculation, adapter parsing and header rewriting,
+  response forwarding, model discovery, and provider connection requests.
 
 ### Remaining Work
 
@@ -121,7 +121,7 @@ upstream model.
 ### Current Evidence
 
 - Provider records and per-protocol configuration are durable.
-- Current name-ordered selection and `x-provider-name` provide a small local routing mechanism.
+- Current name-ordered selection and `x-provider-id` provide a small local routing mechanism.
 - Protocol identities are explicit in code and provider configuration.
 
 ### Remaining Work

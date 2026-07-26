@@ -1,4 +1,3 @@
-import { collectModels } from "#/lib/provider/provider.helpers";
 import type { Provider } from "#/lib/provider/provider.types";
 import type { ParsedUsage } from "./adapter.types";
 
@@ -6,20 +5,10 @@ import type { ParsedUsage } from "./adapter.types";
 export const appendEndpoint = (baseUrl: string, endpoint: string): string =>
   `${baseUrl.replace(/\/+$/, "")}/${endpoint.replace(/^\/+/, "")}`;
 
-/** Exposes configured provider models using the OpenAI models-list shape. */
-export const createOpenaiModelsResponse = (providers: Provider[]): Response => {
-  const created = Math.floor(Date.now() / 1000);
-
-  return Response.json({
-    object: "list",
-    data: collectModels(providers).map((id) => ({
-      id,
-      object: "model",
-      created,
-      owned_by: "gateway",
-    })),
-  });
-};
+export const collectModels = (providers: Provider[]): string[] =>
+  [...new Set(providers.flatMap(({ models }) => models))].sort((left, right) =>
+    left.localeCompare(right),
+  );
 
 const requestHeadersToRemove = [
   "authorization",

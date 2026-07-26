@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { forwardResponse } from "./proxy.helpers";
+import { forwardResponse } from "../proxy.helpers";
 
 describe("forwardResponse", () => {
   test("removes decoded transport headers and preserves the response", async () => {

@@ -1,12 +1,10 @@
 import { GatewayErrorCode } from "#/lib/errors/gateway-error";
-import { collectModels } from "#/lib/provider/provider.helpers";
 import { invariant } from "es-toolkit";
 import { ProtocolType } from "../../protocol.types";
 import { protocolRegistry } from "../../protocol.registry";
-import { appendEndpoint, withHeaders } from "../adapter.helpers";
+import { appendEndpoint, collectModels, emptyUsage, withHeaders } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
-import { emptyUsage } from "../adapter.helpers";
 
 const parseUsage = (usage: Record<string, any> | undefined) => {
   if (!usage) return emptyUsage();

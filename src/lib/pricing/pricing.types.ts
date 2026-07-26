@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const decimalPattern = /^\d+(?:\.\d{1,6})?$/;
 
-export const priceDecimalSchema = z
+const priceDecimalSchema = z
   .string()
   .trim()
   .regex(decimalPattern, "Prices must be non-negative decimals with at most 6 decimal places.");
@@ -16,7 +16,7 @@ export const multiplierSchema = z
   )
   .refine((value) => Number(value) <= 100, "Cost multiplier must not exceed 100.");
 
-export const ratesSchema = z
+const ratesSchema = z
   .object({
     input: priceDecimalSchema,
     output: priceDecimalSchema,
@@ -25,7 +25,7 @@ export const ratesSchema = z
   })
   .strict();
 
-export const pricingTierSchema = z
+const pricingTierSchema = z
   .object({
     inputTokensAbove: z.number().int().nonnegative(),
     rates: ratesSchema,
@@ -73,7 +73,5 @@ export const pricingCatalogSchema = z
   });
 
 export type Rates = z.infer<typeof ratesSchema>;
-export type PricingTier = z.infer<typeof pricingTierSchema>;
 export type ModelPricing = z.infer<typeof modelPricingSchema>;
 export type PricingOverrides = z.infer<typeof pricingOverridesSchema>;
-export type PricingCatalog = z.infer<typeof pricingCatalogSchema>;
