@@ -1,10 +1,12 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, ServerCog } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ClearFiltersButton } from "#/app/dashboard/_components/clear-filters-button";
+import { DashboardPageHeader } from "#/app/dashboard/_components/dashboard-page-header";
 import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
 import { testProviderProtocolAction, toggleProviderAction } from "../provider.actions";
 import { DeleteProviderDialog } from "./delete-provider-dialog";
@@ -27,6 +29,9 @@ export function ProvidersView({
   const [deleting, setDeleting] = useState<ProviderSummary | null>(null);
   const [actionError, setActionError] = useState("");
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const activeFilters = Boolean(
+    (searchParams.get("query") ?? "").trim() || statisticsPeriod !== "30m",
+  );
 
   const filteredProviders = useMemo(() => {
     const normalizedQuery = (searchParams.get("query") ?? "").trim().toLowerCase();
@@ -74,20 +79,25 @@ export function ProvidersView({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb] px-5 py-5 sm:px-7">
-        <h1 className="text-xl font-semibold text-[#101828]">Providers</h1>
-        <div className="flex items-center gap-2">
-          <ProviderStatisticsPeriodFilter value={statisticsPeriod} />
-          <button
-            type="button"
-            onClick={() => setEditing("new")}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
-          >
-            <Plus className="size-4" aria-hidden="true" />
-            Add provider
-          </button>
-        </div>
-      </header>
+      <DashboardPageHeader
+        icon={<ServerCog className="size-5" aria-hidden="true" />}
+        title="Providers"
+        description="Configure upstream connections, protocols, pricing, and routing availability."
+        actions={
+          <>
+            <ClearFiltersButton active={activeFilters} href="/dashboard/providers" />
+            <ProviderStatisticsPeriodFilter value={statisticsPeriod} />
+            <button
+              type="button"
+              onClick={() => setEditing("new")}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Add provider
+            </button>
+          </>
+        }
+      />
 
       <div className="flex min-h-0 flex-1 flex-col">
         {actionError ? (

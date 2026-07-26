@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  BarChart3,
   Box,
   Clock3,
   Database,
@@ -12,6 +13,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { ClearFiltersButton } from "#/app/dashboard/_components/clear-filters-button";
+import { DashboardPageHeader } from "#/app/dashboard/_components/dashboard-page-header";
 import { UsageRecordRow } from "#/app/dashboard/usage/_components/usage-record-row";
 import {
   DataTable,
@@ -24,6 +27,7 @@ import {
 } from "#/components/data-table";
 import { DataTablePanel } from "#/components/data-table-panel";
 import { ProtocolIcon } from "#/components/icons/protocol";
+import { OverflowTooltip } from "#/components/overflow-tooltip";
 import { TableFilter } from "#/components/table-filter";
 import { getUsages } from "#/lib/database/usage.repository";
 import type { UsageRecord } from "#/lib/database/usage.repository";
@@ -118,14 +122,14 @@ const pageHref = (params: URLSearchParams, page: number): string => {
 
 const UsageTableColumns = () => (
   <colgroup>
-    <col className="w-[14%]" />
-    <col className="w-[12%]" />
-    <col className="w-[26%]" />
-    <col className="w-[12%]" />
-    <col className="w-[10%]" />
-    <col className="w-[10%]" />
-    <col className="w-[10%]" />
-    <col className="w-[12%]" />
+    <col className="w-[150px]" />
+    <col className="w-[130px]" />
+    <col className="w-[280px]" />
+    <col className="w-[140px]" />
+    <col className="w-[120px]" />
+    <col className="w-[110px]" />
+    <col className="w-[120px]" />
+    <col className="w-[110px]" />
   </colgroup>
 );
 
@@ -213,243 +217,254 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
   );
 
   return (
-    <DataTablePanel
-      minWidth={1040}
-      footer={tableFooter}
-      header={
-        <DataTable className="table-fixed text-center">
-          <UsageTableColumns />
-          <DataTableHeader>
-            <DataTableHeaderRow className="tracking-wide">
-              <DataTableHead pinned="left">Name</DataTableHead>
-              <DataTableHead>
-                <TableFilter
-                  label="Time"
-                  parameter="period"
-                  defaultValue="7d"
-                  options={[
-                    { label: "Last 24 hours", value: "24h" },
-                    { label: "Last 7 days", value: "7d" },
-                    { label: "Last 30 days", value: "30d" },
-                    { label: "All time", value: "all" },
-                  ]}
-                />
-              </DataTableHead>
-              <DataTableHead>
-                <div className="flex items-center justify-center gap-3">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white">
+      <DashboardPageHeader
+        icon={<BarChart3 className="size-5" aria-hidden="true" />}
+        title="Usage"
+        description="Review gateway requests, token consumption, cost, latency, and response status."
+        actions={<ClearFiltersButton active={activeFilters} href="/dashboard/usage" />}
+      />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <DataTablePanel minWidth={1160} footer={tableFooter}>
+          <DataTable
+            aria-label="Usage records"
+            className={`table-fixed text-center ${records.length ? "" : "h-full flex-1"}`}
+          >
+            <UsageTableColumns />
+            <DataTableHeader>
+              <DataTableHeaderRow className="tracking-wide">
+                <DataTableHead pinned="left">Name</DataTableHead>
+                <DataTableHead>
                   <TableFilter
-                    label="Protocol"
-                    parameter="protocolType"
+                    label="Time"
+                    parameter="period"
+                    defaultValue="7d"
                     options={[
-                      { label: "All protocols", value: "" },
-                      ...protocolOptions.map(({ label, value }) => ({ label, value })),
+                      { label: "Last 24 hours", value: "24h" },
+                      { label: "Last 7 days", value: "7d" },
+                      { label: "Last 30 days", value: "30d" },
+                      { label: "All time", value: "all" },
                     ]}
                   />
-                  <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
+                </DataTableHead>
+                <DataTableHead>
+                  <div className="flex items-center justify-center gap-3">
+                    <TableFilter
+                      label="Protocol"
+                      parameter="protocolType"
+                      options={[
+                        { label: "All protocols", value: "" },
+                        ...protocolOptions.map(({ label, value }) => ({ label, value })),
+                      ]}
+                    />
+                    <TableFilter label="Model" parameter="model" placeholder="Enter model name" />
+                    <TableFilter
+                      label="Stream"
+                      parameter="stream"
+                      defaultValue="all"
+                      options={[
+                        { label: "All request types", value: "all" },
+                        { label: "Streaming", value: "stream" },
+                        { label: "Non-streaming", value: "nonStream" },
+                      ]}
+                    />
+                  </div>
+                </DataTableHead>
+                <DataTableHead>
+                  <TableFilter label="Client" parameter="client" placeholder="Enter client name" />
+                </DataTableHead>
+                <DataTableHead>Tokens</DataTableHead>
+                <DataTableHead>Cost</DataTableHead>
+                <DataTableHead>Duration</DataTableHead>
+                <DataTableHead pinned="right">
                   <TableFilter
-                    label="Stream"
-                    parameter="stream"
+                    label="Status"
+                    parameter="status"
                     defaultValue="all"
+                    align="right"
                     options={[
-                      { label: "All request types", value: "all" },
-                      { label: "Streaming", value: "stream" },
-                      { label: "Non-streaming", value: "nonStream" },
+                      { label: "All statuses", value: "all" },
+                      { label: "Successful", value: "success" },
+                      { label: "Errors", value: "error" },
                     ]}
                   />
-                </div>
-              </DataTableHead>
-              <DataTableHead>
-                <TableFilter label="Client" parameter="client" placeholder="Enter client name" />
-              </DataTableHead>
-              <DataTableHead>Tokens</DataTableHead>
-              <DataTableHead>Cost</DataTableHead>
-              <DataTableHead>Duration</DataTableHead>
-              <DataTableHead pinned="right">
-                <TableFilter
-                  label="Status"
-                  parameter="status"
-                  defaultValue="all"
-                  align="right"
-                  options={[
-                    { label: "All statuses", value: "all" },
-                    { label: "Successful", value: "success" },
-                    { label: "Errors", value: "error" },
-                  ]}
-                />
-              </DataTableHead>
-            </DataTableHeaderRow>
-          </DataTableHeader>
-        </DataTable>
-      }
-    >
-      <DataTable className={`table-fixed text-center ${records.length ? "" : "h-full flex-1"}`}>
-        <UsageTableColumns />
-        <DataTableBody className={records.length ? undefined : "h-full"}>
-          {records.length ? (
-            records.map((record) => {
-              const timestamp = formatDate(record.startAt);
-              const statusInfo = getStatus(record.status);
-              const cachedInputPercentage = getCachedInputPercentage(record);
-              const totalInputTokens = getTotalInputTokens(record);
+                </DataTableHead>
+              </DataTableHeaderRow>
+            </DataTableHeader>
+            <DataTableBody className={records.length ? undefined : "h-full"}>
+              {records.length ? (
+                records.map((record) => {
+                  const timestamp = formatDate(record.startAt);
+                  const statusInfo = getStatus(record.status);
+                  const cachedInputPercentage = getCachedInputPercentage(record);
+                  const totalInputTokens = getTotalInputTokens(record);
 
-              return (
-                <UsageRecordRow
-                  key={record.id}
-                  recordId={record.id}
-                  recordJson={JSON.stringify(record, null, 2)}
-                >
-                  <DataTableCell pinned="left">
-                    <p
-                      className="mx-auto max-w-48 truncate text-[#475467]"
-                      title={record.name ?? undefined}
+                  return (
+                    <UsageRecordRow
+                      key={record.id}
+                      recordId={record.id}
+                      recordJson={JSON.stringify(record, null, 2)}
                     >
-                      {record.name ?? "-"}
-                    </p>
-                  </DataTableCell>
-                  <DataTableCell className="whitespace-nowrap">
-                    <p className="font-medium text-[#344054]">{timestamp.date}</p>
-                    <p className="mt-0.5 font-mono text-xs text-[#98a2b3]">{timestamp.time}</p>
-                  </DataTableCell>
-                  <DataTableCell>
-                    <div className="mx-auto flex max-w-80 items-center justify-center gap-1.5">
-                      {isProtocolType(record.protocolType) ? (
-                        <ProtocolIcon protocol={record.protocolType} size={16} />
-                      ) : (
-                        <span className="text-[#98a2b3]">—</span>
-                      )}
-                      <p
-                        className="min-w-0 truncate font-medium text-[#101828]"
-                        title={record.model ?? undefined}
-                      >
-                        {record.model ?? "-"}
-                      </p>
-                      <span
-                        className="shrink-0 text-[#667085]"
-                        title={record.isStream ? "Streaming" : "Non-streaming"}
-                      >
-                        {record.isStream ? (
-                          <Waves className="size-4" aria-hidden="true" />
-                        ) : (
-                          <Box className="size-4" aria-hidden="true" />
-                        )}
-                        <span className="sr-only">
-                          {record.isStream ? "Streaming" : "Non-streaming"}
-                        </span>
-                      </span>
-                    </div>
-                  </DataTableCell>
-                  <DataTableCell>
-                    <p
-                      className="mx-auto max-w-40 truncate text-[#475467]"
-                      title={record.client ?? undefined}
-                    >
-                      {record.client ?? "—"}
-                    </p>
-                  </DataTableCell>
-                  <DataTableCell className="whitespace-nowrap">
-                    {record.inputTokens !== null ||
-                    record.outputTokens !== null ||
-                    record.cacheCreationInputTokens !== null ||
-                    record.cacheReadInputTokens !== null ? (
-                      <div className="mx-auto flex w-fit flex-col items-center gap-1 text-xs tabular-nums">
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="text-[#667085]" title="Output tokens">
-                            <ArrowDown className="size-3.5" aria-hidden="true" />
-                            <span className="sr-only">Output tokens</span>
-                          </span>
-                          <span className="font-medium text-[#344054]">
-                            {formatCompactNumber(record.outputTokens ?? 0)}
+                      <DataTableCell pinned="left">
+                        <OverflowTooltip content={record.name ?? "-"}>
+                          <p
+                            tabIndex={0}
+                            className="mx-auto max-w-full truncate text-[#475467] outline-none"
+                          >
+                            {record.name ?? "-"}
+                          </p>
+                        </OverflowTooltip>
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
+                        <p className="font-medium text-[#344054]">{timestamp.date}</p>
+                        <p className="mt-0.5 font-mono text-xs text-[#98a2b3]">{timestamp.time}</p>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <div className="mx-auto flex max-w-80 items-center justify-center gap-1.5">
+                          {isProtocolType(record.protocolType) ? (
+                            <ProtocolIcon protocol={record.protocolType} size={16} />
+                          ) : (
+                            <span className="text-[#98a2b3]">—</span>
+                          )}
+                          <OverflowTooltip content={record.model ?? "-"}>
+                            <p
+                              tabIndex={0}
+                              className="min-w-0 truncate font-medium text-[#101828] outline-none"
+                            >
+                              {record.model ?? "-"}
+                            </p>
+                          </OverflowTooltip>
+                          <span
+                            className="shrink-0 text-[#667085]"
+                            title={record.isStream ? "Streaming" : "Non-streaming"}
+                          >
+                            {record.isStream ? (
+                              <Waves className="size-4" aria-hidden="true" />
+                            ) : (
+                              <Box className="size-4" aria-hidden="true" />
+                            )}
+                            <span className="sr-only">
+                              {record.isStream ? "Streaming" : "Non-streaming"}
+                            </span>
                           </span>
                         </div>
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="text-[#667085]" title="Input tokens">
-                            <ArrowUp className="size-3.5" aria-hidden="true" />
-                            <span className="sr-only">Input tokens</span>
-                          </span>
-                          <span className="font-medium text-[#344054]">
-                            {formatCompactNumber(totalInputTokens ?? 0)}
-                            {cachedInputPercentage !== null ? (
-                              <span
-                                className="ml-1 text-[#248a3d]"
-                                title={`${cachedInputPercentage}% of input tokens served from cache`}
-                              >
-                                ({cachedInputPercentage}%)
+                      </DataTableCell>
+                      <DataTableCell>
+                        <OverflowTooltip content={record.client ?? "—"}>
+                          <p
+                            tabIndex={0}
+                            className="mx-auto max-w-full truncate text-[#475467] outline-none"
+                          >
+                            {record.client ?? "—"}
+                          </p>
+                        </OverflowTooltip>
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
+                        {record.inputTokens !== null ||
+                        record.outputTokens !== null ||
+                        record.cacheCreationInputTokens !== null ||
+                        record.cacheReadInputTokens !== null ? (
+                          <div className="mx-auto flex w-fit flex-col items-center gap-1 text-xs tabular-nums">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-[#667085]" title="Output tokens">
+                                <ArrowDown className="size-3.5" aria-hidden="true" />
+                                <span className="sr-only">Output tokens</span>
                               </span>
+                              <span className="font-medium text-[#344054]">
+                                {formatCompactNumber(record.outputTokens ?? 0)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-[#667085]" title="Input tokens">
+                                <ArrowUp className="size-3.5" aria-hidden="true" />
+                                <span className="sr-only">Input tokens</span>
+                              </span>
+                              <span className="font-medium text-[#344054]">
+                                {formatCompactNumber(totalInputTokens ?? 0)}
+                                {cachedInputPercentage !== null ? (
+                                  <span
+                                    className="ml-1 text-[#248a3d]"
+                                    title={`${cachedInputPercentage}% of input tokens served from cache`}
+                                  >
+                                    ({cachedInputPercentage}%)
+                                  </span>
+                                ) : null}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[#98a2b3]">—</span>
+                        )}
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
+                        {record.costMicros !== null &&
+                        (record.costStatus === "complete" || record.costStatus === "partial") ? (
+                          <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
+                            {formatCost(record.costMicros)}
+                            {record.costStatus === "partial" ? (
+                              <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
+                                Partial
+                              </p>
                             ) : null}
-                          </span>
+                          </div>
+                        ) : (
+                          <span className="text-[#98a2b3]">—</span>
+                        )}
+                      </DataTableCell>
+                      <DataTableCell className="whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5 font-medium tabular-nums text-[#344054]">
+                          <Clock3 className="size-3.5 text-[#98a2b3]" aria-hidden="true" />
+                          {formatDuration(getDuration(record))}
                         </div>
-                      </div>
-                    ) : (
-                      <span className="text-[#98a2b3]">—</span>
-                    )}
-                  </DataTableCell>
-                  <DataTableCell className="whitespace-nowrap">
-                    {record.costMicros !== null &&
-                    (record.costStatus === "complete" || record.costStatus === "partial") ? (
-                      <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
-                        {formatCost(record.costMicros)}
-                        {record.costStatus === "partial" ? (
-                          <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
-                            Partial
+                        {record.timeToFirstByteMs !== null ? (
+                          <p className="mt-1 text-xs tabular-nums text-[#98a2b3]">
+                            TTFB {formatDuration(record.timeToFirstByteMs)}
                           </p>
                         ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-[#98a2b3]">—</span>
-                    )}
-                  </DataTableCell>
-                  <DataTableCell className="whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-1.5 font-medium tabular-nums text-[#344054]">
-                      <Clock3 className="size-3.5 text-[#98a2b3]" aria-hidden="true" />
-                      {formatDuration(getDuration(record))}
-                    </div>
-                    {record.timeToFirstByteMs !== null ? (
-                      <p className="mt-1 text-xs tabular-nums text-[#98a2b3]">
-                        TTFB {formatDuration(record.timeToFirstByteMs)}
-                      </p>
-                    ) : null}
-                  </DataTableCell>
-                  <DataTableCell pinned="right">
-                    <div className="flex items-center justify-center gap-1">
-                      <span
-                        className={
-                          statusInfo.successful
-                            ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
-                            : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
-                        }
+                      </DataTableCell>
+                      <DataTableCell pinned="right">
+                        <div className="flex items-center justify-center gap-1">
+                          <span
+                            className={
+                              statusInfo.successful
+                                ? "inline-flex min-w-14 justify-center rounded-full bg-[#ecfdf3] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#027a48]"
+                                : "inline-flex min-w-14 justify-center rounded-full bg-[#fef3f2] px-2.5 py-1 text-xs font-semibold tabular-nums text-[#b42318]"
+                            }
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                      </DataTableCell>
+                    </UsageRecordRow>
+                  );
+                })
+              ) : (
+                <DataTableEmptyState
+                  colSpan={8}
+                  icon={<Database className="size-5" strokeWidth={1.8} aria-hidden="true" />}
+                  title="No usage records found"
+                  description={
+                    activeFilters
+                      ? "Try adjusting your filters to see more requests."
+                      : "Requests will appear here after they pass through the gateway."
+                  }
+                  action={
+                    activeFilters ? (
+                      <Link
+                        href="/dashboard/usage"
+                        className="mt-4 text-sm font-medium text-[#0369a1] hover:text-[#075985]"
                       >
-                        {statusInfo.label}
-                      </span>
-                    </div>
-                  </DataTableCell>
-                </UsageRecordRow>
-              );
-            })
-          ) : (
-            <DataTableEmptyState
-              colSpan={8}
-              icon={<Database className="size-5" strokeWidth={1.8} aria-hidden="true" />}
-              title="No usage records found"
-              description={
-                activeFilters
-                  ? "Try adjusting your filters to see more requests."
-                  : "Requests will appear here after they pass through the gateway."
-              }
-              action={
-                activeFilters ? (
-                  <Link
-                    href="/dashboard/usage"
-                    className="mt-4 text-sm font-medium text-[#0369a1] hover:text-[#075985]"
-                  >
-                    Clear all filters
-                  </Link>
-                ) : undefined
-              }
-            />
-          )}
-        </DataTableBody>
-      </DataTable>
-    </DataTablePanel>
+                        Clear all filters
+                      </Link>
+                    ) : undefined
+                  }
+                />
+              )}
+            </DataTableBody>
+          </DataTable>
+        </DataTablePanel>
+      </div>
+    </div>
   );
 }
 

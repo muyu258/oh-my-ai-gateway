@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import Image from "next/image";
 import { Toaster } from "sonner";
 
+import { OverflowTooltipProvider } from "#/components/overflow-tooltip";
 import Navigation from "./_components/navigation";
 import { Metadata } from "next";
 
@@ -32,7 +33,7 @@ const LogoutForm = () => (
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <OverflowTooltipProvider>
       <Toaster richColors duration={5000} visibleToasts={5} />
       <div className="flex h-svh w-full flex-col overflow-hidden bg-white text-[#111827] md:flex-row">
         <aside className="h-full flex w-64 shrink-0 flex-col border-r border-[#e5e7eb] bg-white p-4">
@@ -49,6 +50,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <main className="min-h-0 min-w-0 flex flex-1 overflow-y-auto">{children}</main>
       </div>
-    </>
+    </OverflowTooltipProvider>
   );
 }

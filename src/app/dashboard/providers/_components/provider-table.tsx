@@ -25,25 +25,21 @@ import {
 } from "#/components/data-table";
 import { DataTablePanel } from "#/components/data-table-panel";
 import { ProtocolIcon } from "#/components/icons/protocol";
+import { OverflowTooltip } from "#/components/overflow-tooltip";
 import { TableFilter } from "#/components/table-filter";
 import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
 import { protocolOptions } from "#/lib/protocol/protocol.registry";
-import {
-  formatUpdatedAt,
-  responseTimeBadge,
-  statisticsPeriodLabels,
-} from "./provider-view.helpers";
+import { responseTimeBadge, statisticsPeriodLabels } from "./provider-view.helpers";
 
 const ProviderTableColumns = () => (
   <colgroup>
-    <col className="w-[170px]" />
-    <col className="w-[280px]" />
+    <col className="w-[190px]" />
+    <col className="w-[300px]" />
     <col className="w-[150px]" />
     <col className="w-[180px]" />
     <col className="w-[140px]" />
     <col className="w-[140px]" />
-    <col className="w-[100px]" />
-    <col className="w-[120px]" />
+    <col className="w-[180px]" />
   </colgroup>
 );
 
@@ -94,30 +90,22 @@ export function ProviderTable({
   onDelete: (provider: ProviderSummary) => void;
 }) {
   return (
-    <DataTablePanel
-      minWidth={1280}
-      header={
-        <DataTable className="table-fixed text-center">
-          <ProviderTableColumns />
-          <DataTableHeader>
-            <DataTableHeaderRow>
-              <DataTableHead pinned="left">
-                <TableFilter label="Provider" parameter="query" placeholder="Search providers" />
-              </DataTableHead>
-              <DataTableHead>Base URL</DataTableHead>
-              <DataTableHead>Protocols</DataTableHead>
-              <DataTableHead>Tokens</DataTableHead>
-              <DataTableHead>Cost</DataTableHead>
-              <DataTableHead>Avg TTFB</DataTableHead>
-              <DataTableHead>Status</DataTableHead>
-              <DataTableHead pinned="right">Actions</DataTableHead>
-            </DataTableHeaderRow>
-          </DataTableHeader>
-        </DataTable>
-      }
-    >
-      <DataTable className="table-fixed text-center">
+    <DataTablePanel minWidth={1280}>
+      <DataTable aria-label="Providers" className="table-fixed text-center">
         <ProviderTableColumns />
+        <DataTableHeader>
+          <DataTableHeaderRow>
+            <DataTableHead pinned="left">
+              <TableFilter label="Provider" parameter="query" placeholder="Search providers" />
+            </DataTableHead>
+            <DataTableHead>Base URL</DataTableHead>
+            <DataTableHead>Protocols</DataTableHead>
+            <DataTableHead>Tokens</DataTableHead>
+            <DataTableHead>Cost</DataTableHead>
+            <DataTableHead>Avg TTFB</DataTableHead>
+            <DataTableHead pinned="right">Actions</DataTableHead>
+          </DataTableHeaderRow>
+        </DataTableHeader>
         <DataTableBody>
           {providers.map((provider) => {
             const responseTime = responseTimeBadge(provider.averageResponseTimeMs);
@@ -129,45 +117,50 @@ export function ProviderTable({
                 <DataTableCell pinned="left">
                   <div className="flex items-center justify-center">
                     {provider.websiteUrl ? (
-                      <a
-                        href={provider.websiteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="min-w-0 max-w-64 truncate font-medium text-[#0369a1] transition hover:text-[#075985]"
-                        title={`${provider.name}(${provider.models.length})`}
-                      >
-                        {provider.name}({provider.models.length})
-                      </a>
+                      <OverflowTooltip content={`${provider.name}(${provider.models.length})`}>
+                        <a
+                          href={provider.websiteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-w-0 max-w-full truncate font-medium text-[#0369a1] transition hover:text-[#075985]"
+                        >
+                          {provider.name}({provider.models.length})
+                        </a>
+                      </OverflowTooltip>
                     ) : (
-                      <p
-                        className="max-w-64 truncate font-medium text-[#101828]"
-                        title={`${provider.name}(${provider.models.length})`}
-                      >
-                        {provider.name}({provider.models.length})
-                      </p>
+                      <OverflowTooltip content={`${provider.name}(${provider.models.length})`}>
+                        <p
+                          tabIndex={0}
+                          className="max-w-full truncate font-medium text-[#101828] outline-none"
+                        >
+                          {provider.name}({provider.models.length})
+                        </p>
+                      </OverflowTooltip>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(provider.id)}
-                    className="mx-auto mt-1 flex max-w-40 items-center gap-1 font-mono text-[10px] text-[#98a2b3] transition hover:text-[#475467]"
-                    title={`Copy provider ID: ${provider.id}`}
-                    aria-label={`Copy provider ID for ${provider.name}`}
-                  >
-                    <span className="truncate">{provider.id}</span>
-                    <Copy className="size-3 shrink-0" aria-hidden="true" />
-                  </button>
+                  <OverflowTooltip content={provider.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(provider.id)}
+                      className="mx-auto mt-1 flex max-w-full items-center gap-1 font-mono text-[10px] text-[#98a2b3] transition hover:text-[#475467]"
+                      aria-label={`Copy provider ID for ${provider.name}`}
+                    >
+                      <span data-overflow-target className="min-w-0 truncate">
+                        {provider.id}
+                      </span>
+                      <Copy className="size-3 shrink-0" aria-hidden="true" />
+                    </button>
+                  </OverflowTooltip>
                 </DataTableCell>
                 <DataTableCell>
-                  <p
-                    className="mx-auto max-w-60 truncate font-mono text-xs text-[#475467]"
-                    title={provider.baseUrl ?? undefined}
-                  >
-                    {provider.baseUrl ?? "Provider default"}
-                  </p>
-                  <p className="mt-1 text-xs text-[#98a2b3]">
-                    Updated {formatUpdatedAt(provider.updatedAt)}
-                  </p>
+                  <OverflowTooltip content={provider.baseUrl ?? "Provider default"}>
+                    <p
+                      tabIndex={0}
+                      className="mx-auto max-w-full truncate font-mono text-xs text-[#475467] outline-none"
+                    >
+                      {provider.baseUrl ?? "Provider default"}
+                    </p>
+                  </OverflowTooltip>
                 </DataTableCell>
                 <DataTableCell>
                   <div className="mx-auto flex w-fit max-w-56 flex-wrap justify-center gap-1.5">
@@ -220,11 +213,6 @@ export function ProviderTable({
                   {provider.costMicros !== null ? (
                     <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
                       {formatCost(provider.costMicros)}
-                      {!provider.costComplete ? (
-                        <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
-                          Partial
-                        </p>
-                      ) : null}
                     </div>
                   ) : (
                     <span className="text-[#98a2b3]">—</span>
@@ -238,32 +226,31 @@ export function ProviderTable({
                     {responseTime.label}
                   </span>
                 </DataTableCell>
-                <DataTableCell>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={provider.enabled}
-                    aria-label={`${provider.enabled ? "Disable" : "Enable"} ${provider.name}`}
-                    title={provider.enabled ? "Disable" : "Enable"}
-                    disabled={pending}
-                    onClick={() => onToggle(provider)}
-                    className={`relative h-6 w-11 rounded-full transition disabled:opacity-50 ${provider.enabled ? "bg-[#0284c7]" : "bg-[#d0d5dd]"}`}
-                  >
-                    <span
-                      className={`absolute top-0.5 flex size-5 items-center justify-center rounded-full bg-white shadow-sm transition ${provider.enabled ? "left-5" : "left-0.5"}`}
-                    >
-                      {provider.enabled ? (
-                        <Check
-                          className="size-3 text-[#0284c7]"
-                          strokeWidth={3}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                    </span>
-                  </button>
-                </DataTableCell>
                 <DataTableCell pinned="right" className="px-2">
-                  <div className="flex justify-center gap-1">
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={provider.enabled}
+                      aria-label={`${provider.enabled ? "Disable" : "Enable"} ${provider.name}`}
+                      title={provider.enabled ? "Disable" : "Enable"}
+                      disabled={pending}
+                      onClick={() => onToggle(provider)}
+                      className={`relative mr-1 h-6 w-11 shrink-0 rounded-full transition disabled:opacity-50 ${provider.enabled ? "bg-[#0284c7]" : "bg-[#d0d5dd]"}`}
+                    >
+                      <span
+                        className={`absolute top-0.5 flex size-5 items-center justify-center rounded-full bg-white shadow-sm transition ${provider.enabled ? "left-5" : "left-0.5"}`}
+                      >
+                        {provider.enabled ? (
+                          <Check
+                            className="size-3 text-[#0284c7]"
+                            strokeWidth={3}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                      </span>
+                    </button>
+                    <span className="mx-1 h-5 w-px bg-[#e5e7eb]" aria-hidden="true" />
                     <button
                       type="button"
                       onClick={() => onTest(provider)}
@@ -309,7 +296,7 @@ export function ProviderTable({
           })}
           {!providers.length ? (
             <DataTableEmptyState
-              colSpan={8}
+              colSpan={7}
               className="min-h-80"
               icon={<ServerCog className="size-5" aria-hidden="true" />}
               title={totalProviders ? "No providers found" : "No providers configured"}

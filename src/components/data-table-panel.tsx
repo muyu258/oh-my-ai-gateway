@@ -17,21 +17,18 @@ const hasHiddenContentToLeft = (scrollLeft: number): boolean =>
   scrollLeft > HORIZONTAL_OVERFLOW_TOLERANCE;
 
 export function DataTablePanel({
-  header,
   children,
   footer,
   minWidth = 960,
   className,
 }: {
-  header: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   minWidth?: number;
   className?: string;
 }) {
-  const headerViewportRef = useRef<HTMLDivElement>(null);
-  const bodyViewportRef = useRef<HTMLDivElement>(null);
-  const bodyContentRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [hiddenContentToLeft, setHiddenContentToLeft] = useState(false);
   const [hiddenContentToRight, setHiddenContentToRight] = useState(false);
 
@@ -43,8 +40,8 @@ export function DataTablePanel({
   }, []);
 
   useLayoutEffect(() => {
-    const viewport = bodyViewportRef.current;
-    const content = bodyContentRef.current;
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
     if (!viewport || !content) return;
 
     const update = () => updatePinnedBoundary(viewport);
@@ -56,12 +53,7 @@ export function DataTablePanel({
     return () => observer.disconnect();
   }, [minWidth, updatePinnedBoundary]);
 
-  const syncHeader = (event: UIEvent<HTMLDivElement>) => {
-    const { scrollLeft } = event.currentTarget;
-    // Header and body are separate viewports so the header can stay fixed while rows scroll.
-    if (headerViewportRef.current) {
-      headerViewportRef.current.scrollLeft = scrollLeft;
-    }
+  const updateScrollState = (event: UIEvent<HTMLDivElement>) => {
     updatePinnedBoundary(event.currentTarget);
   };
 
@@ -75,17 +67,11 @@ export function DataTablePanel({
       )}
     >
       <div
-        ref={headerViewportRef}
-        className="z-10 shrink-0 overflow-x-hidden bg-white/95 shadow-[0_1px_0_rgba(0,0,0,0.08)] backdrop-blur-xl"
-      >
-        <div style={{ minWidth }}>{header}</div>
-      </div>
-      <div
-        ref={bodyViewportRef}
+        ref={viewportRef}
         className="data-table-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
-        onScroll={syncHeader}
+        onScroll={updateScrollState}
       >
-        <div ref={bodyContentRef} className="flex min-h-full flex-col" style={{ minWidth }}>
+        <div ref={contentRef} className="flex min-h-full flex-col" style={{ minWidth }}>
           {children}
         </div>
       </div>

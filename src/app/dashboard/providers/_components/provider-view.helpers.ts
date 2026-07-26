@@ -52,16 +52,6 @@ export const toProviderFormInput = (
   };
 };
 
-export const formatUpdatedAt = (date: Date): string =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(date));
-
 export const responseTimeBadge = (
   milliseconds: number | null,
 ): { label: string; className: string } => {

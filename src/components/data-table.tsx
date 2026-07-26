@@ -7,7 +7,7 @@ export function DataTable({ className, ...props }: ComponentPropsWithoutRef<"tab
 }
 
 export function DataTableHeader({ className, ...props }: ComponentPropsWithoutRef<"thead">) {
-  return <thead className={classes("sticky top-0 z-10 bg-[#fbfbfd]", className)} {...props} />;
+  return <thead className={classes("bg-[#fbfbfd]", className)} {...props} />;
 }
 
 export function DataTableHeaderRow({ className, ...props }: ComponentPropsWithoutRef<"tr">) {
@@ -43,17 +43,19 @@ export function DataTableHead({
   pinned,
   pinOffset = 0,
   pinnedBoundary = true,
+  scope = "col",
   style,
   ...props
 }: ComponentPropsWithoutRef<"th"> & PinnedCellProps) {
   return (
     <th
       className={classes(
-        "px-5 py-3",
-        pinned ? `data-table-pinned-${pinned} sticky z-20 bg-[#fbfbfd]` : undefined,
+        "sticky top-0 z-10 bg-[#fbfbfd] px-5 py-3 shadow-[inset_0_-1px_0_#e5e7eb]",
+        pinned ? `data-table-pinned-${pinned} z-20` : undefined,
         pinned && pinnedBoundary ? `data-table-pinned-boundary-${pinned}` : undefined,
         className,
       )}
+      scope={scope}
       style={pinnedStyle(pinned, pinOffset, style)}
       {...props}
     />
