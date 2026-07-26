@@ -1,610 +1,321 @@
 # Phased Implementation Plan
 
-## 1. Purpose
+## 1. Purpose and Baseline
 
-This document is the executable delivery plan for `oh-my-ai-gateway`. The project will advance one
-bounded phase at a time. A phase is complete only when its acceptance criteria have been verified and
-its known limitations are documented.
+This plan starts from the repository implementation present on **2026-07-26**. The gateway is no
+longer a scaffold: it already provides a usable local, shared-token, multi-protocol forwarding path,
+SQLite provider management, usage capture, provider cost estimation, and dashboards.
 
-The architecture and domain terminology used here are defined in
-[AI API Gateway Architecture](./architecture.md).
+[The architecture document](./architecture.md) describes only what exists. This plan preserves the
+larger consumer routing, authoritative metering, ledger, analytics, and production goals as future
+milestones without presenting them as current behavior.
 
-## 2. Current Status
+Status values used here are deliberately limited to:
 
-The repository currently contains a Next.js application scaffold and project documentation. It does
-not yet contain gateway runtime behavior.
+- **Implemented:** the bounded outcome exists and its listed acceptance criteria are satisfied.
+- **Partially implemented:** useful capability exists, but required correctness or operational work
+  remains.
+- **Not implemented:** the milestone's defining capability does not exist.
 
-| Phase | Milestone                                   | Status      |
-| ----- | ------------------------------------------- | ----------- |
-| 0     | Architecture baseline                       | In progress |
-| 1     | Native forwarding vertical slice            | Planned     |
-| 2     | Multi-protocol binding support              | Planned     |
-| 3     | Durable consumer and routing control plane  | Planned     |
-| 4     | Usage metering and immutable billing ledger | Planned     |
-| 5     | Analytics and operational visibility        | Planned     |
-| 6     | Production hardening                        | Planned     |
+| Phase | Milestone                                                  | Status                |
+| ----- | ---------------------------------------------------------- | --------------------- |
+| 1     | Local single-token, multi-protocol gateway baseline        | Implemented           |
+| 2     | Data-plane correctness and integration coverage            | Partially implemented |
+| 3     | Consumer, API key, and deterministic routing control plane | Not implemented       |
+| 4     | Authoritative request metering and provider cost           | Partially implemented |
+| 5     | Immutable consumer billing ledger                          | Not implemented       |
+| 6     | Rebuildable analytics and operational diagnostics          | Partially implemented |
+| 7     | Production hardening                                       | Not implemented       |
 
-Status values are:
+Terminology is strict throughout this plan:
 
-- **Planned:** work has not started.
-- **In progress:** the phase is the active delivery boundary.
-- **Blocked:** a named external decision or dependency prevents completion.
-- **Complete:** all acceptance criteria have been verified.
+- **Provider cost** is the current estimate of upstream cost from provider-reported usage.
+- **Consumer billing** is a future authoritative charge to a gateway consumer.
+- A current usage cost snapshot is not a charge or ledger fact.
 
-## 3. Definition of Independently Complete
+## 2. Phase 1: Local Single-Token, Multi-Protocol Gateway Baseline
 
-Each phase must leave a coherent system that can be demonstrated and verified without relying on
-unfinished behavior from the next phase.
-
-A phase is independently complete when:
-
-1. its bounded outcome works end to end;
-2. automated and manual verification for that outcome passes;
-3. failure behavior inside the phase boundary is deterministic;
-4. secrets and sensitive payloads are not exposed;
-5. limitations and exclusions are documented;
-6. architecture documentation reflects any approved decision changes; and
-7. no essential correctness task is deferred under the label of a later phase.
-
-A phase does not need every future production capability. It must be safe and honest about what it
-can and cannot do.
-
-## 4. Dependency Sequence
-
-```text
-Phase 0: Architecture baseline
-  ▼
-Phase 1: One native protocol vertical slice
-  ▼
-Phase 2: Multiple protocol handlers and bindings
-  ▼
-Phase 3: Durable consumers, keys, providers, bindings, and routes
-  ▼
-Phase 4: Durable usage and immutable billing ledger
-  ▼
-Phase 5: Rebuildable analytics and operational visibility
-  ▼
-Phase 6: Production reliability and security controls
-```
-
-The dependency rules are:
-
-- Phase 1 establishes the framework-independent data-plane boundary.
-- Phase 2 extends the Phase 1 forwarding path instead of replacing it.
-- Phases 1 and 2 may use development configuration so persistence is not selected prematurely.
-- Phase 3 makes configuration durable without claiming metering or billing completeness.
-- Phase 4 depends on stable request IDs, route identities, and durable configuration from Phase 3.
-- Phase 5 reads authoritative request, usage, and ledger records but never becomes the billing source
-  of truth.
-- Phase 6 introduces retry and failover only after attempt and charge idempotency are defined.
-
-## 5. Phase 0 — Architecture Baseline
+**Status:** Implemented
 
 ### Outcome
 
-The product boundaries, terminology, architecture, and incremental delivery plan are versioned in
-the repository and can guide implementation without relying on conversation history.
+A trusted local caller can use one shared token to send native requests through any of the three
+supported protocol operations to an enabled, model-matching SQLite provider and inspect resulting
+usage in the dashboard.
 
-### Dependencies
+### Current Evidence
 
-None.
+- Next.js Route Handlers expose Chat Completions, Responses, Messages, and model listing.
+- Built-in adapters preserve each native payload and support JSON and SSE usage parsing.
+- Protocol-specific gateway and provider authentication headers are applied.
+- SQLite migrations, provider CRUD, enablement, protocol configuration, model discovery, connection
+  testing, and usage views are present.
+- Provider selection filters enabled records by exact protocol and model, with an optional
+  `x-provider-name` constraint.
+- Unit tests cover adapter parsing, forwarding helpers, discovery, repository behavior, migrations,
+  and cost calculation.
 
-### Scope
+### Remaining Work
 
-- Project purpose and current status.
-- Initial goals and explicit non-goals.
-- Native protocol forwarding with no conversion.
-- Domain model and terminology.
-- Request lifecycle and streaming behavior.
-- Provider and multi-protocol binding model.
-- Consumer API-key attribution and deterministic routing inputs.
-- Usage normalization and completeness states.
-- Versioned rates and multipliers.
-- Immutable charge records and separate analytics.
-- Data-plane and control-plane boundaries.
-- English phased implementation plan.
-
-### Deliverables
-
-- Updated `README.md`.
-- `docs/architecture.md`.
-- `docs/plan.md`.
-
-### Exclusions
-
-- Runtime gateway endpoints.
-- Provider connectivity.
-- Persistence.
-- Authentication implementation.
-- Automated gateway tests.
-- Control-plane UI.
+No work remains inside this deliberately local and trusted baseline. Its security and scale limits
+are inputs to later phases, not hidden acceptance criteria for this phase.
 
 ### Acceptance Criteria
 
-- [ ] The README accurately describes the repository as an AI API gateway project and states that
-      runtime gateway behavior is not yet implemented.
-- [ ] The README links to the architecture and implementation plan.
-- [ ] The architecture defines every core domain term in one authoritative location.
-- [ ] The no-conversion and same-protocol routing invariants are explicit.
-- [ ] Transparent forwarding and safe header rewriting are defined.
-- [ ] Streaming usage observation does not require full response buffering.
-- [ ] Missing usage is distinguished from zero usage.
-- [ ] Billing profile versioning, immutable charges, idempotency, and adjustments are defined.
-- [ ] Analytics and ledger responsibilities are clearly separated.
-- [ ] Every implementation phase has bounded scope, exclusions, and verifiable acceptance criteria.
-- [ ] Repository formatting and quality checks pass.
+- [x] All three native generation endpoints authenticate and route without protocol conversion.
+- [x] `/v1/models` returns configured models in the inferred OpenAI or Anthropic shape.
+- [x] Provider configuration and usage survive application restarts in SQLite.
+- [x] Operators can configure, discover, test, enable, disable, and delete providers.
+- [x] The dashboard displays provider summaries and filterable usage records.
+- [x] Local database initialization is documented and reproducible from committed migrations.
 
-### System Capability at Completion
+## 3. Phase 2: Data-Plane Correctness and Integration Coverage
 
-The repository contains an agreed and reviewable design baseline. It still does not forward API
-traffic.
-
-## 6. Phase 1 — Native Forwarding Vertical Slice
+**Status:** Partially implemented
 
 ### Outcome
 
-One OpenAI Chat Completions-compatible request can authenticate a consumer, resolve one deterministic
-route, and transparently proxy both non-streaming and streaming responses to one configured upstream
-binding.
+Native forwarding behaves predictably across success, streaming, cancellation, timeout, malformed
+input, upstream failure, and client disconnect scenarios, with traceable lifecycle evidence.
 
-### Dependencies
+### Current Evidence
 
-Phase 0 complete.
+- Request payloads and client-facing streams remain native.
+- Routing failures are normalized to protocol-shaped responses.
+- Request authentication and upstream credentials are separated by adapter header rewriting.
+- Response headers affected by runtime decoding are removed.
+- Adapter and helper tests exercise JSON and streaming usage parsers and selected header behavior.
 
-### Scope
+### Remaining Work
 
-- Built-in `openai.chat-completions` protocol handler.
-- Native `POST /v1/chat/completions` ingress endpoint.
-- A minimal gateway API-key mechanism for one or more development consumers.
-- Development configuration for one provider protocol binding and model route.
-- Route lookup by consumer, protocol, and requested model.
-- Raw request-body forwarding without payload conversion.
-- Safe request and response header policies.
-- Non-streaming response forwarding.
-- SSE response forwarding with minimal buffering.
-- Client cancellation propagation.
-- Gateway correlation ID and secret-safe structured request logging.
-- Framework-neutral gateway application boundary with a thin Next.js host adapter.
-
-Development configuration may be static or in memory. Durability is intentionally deferred.
-
-### Primary Deliverables
-
-- Framework-neutral protocol, routing, forwarding, and request-lifecycle contracts.
-- OpenAI Chat Completions protocol handler.
-- Protocol registry containing one handler.
-- Thin Next.js Route Handler for `/v1/chat/completions`.
-- Development consumer, provider binding, and route configuration.
-- Unit tests for request inspection, routing, and header filtering.
-- Integration test upstream that can return normal JSON, SSE, and native errors.
-- End-to-end verification for authorized, unauthorized, missing-route, normal, streaming, failure,
-  and cancellation flows.
-
-### Explicit Exclusions
-
-- OpenAI Responses and Anthropic Messages.
-- Protocol conversion.
-- Durable configuration or usage storage.
-- Billing and balance deduction.
-- Analytics dashboards.
-- Rate limiting and quotas.
-- Automatic retries or provider failover.
-- Polished management UI.
+- Introduce a correlation/request ID at ingress and propagate it through logs, responses, upstream
+  attempts, and usage.
+- Specify and test client cancellation propagation, upstream timeouts, and disconnect behavior.
+- Replace the partial header removal rules with a documented end-to-end request and response header
+  policy, including hop-by-hop and forwarding headers.
+- Add full Route Handler integration tests using representative OpenAI and Anthropic upstreams.
+- Verify streaming end to end for delivery timing, backpressure, early termination, malformed SSE,
+  and usage events that arrive late or not at all.
+- Define maximum request/body/header sizes and deterministic invalid-payload behavior.
 
 ### Acceptance Criteria
 
-- [ ] An authorized request to `POST /v1/chat/completions` reaches exactly one configured
-      `openai.chat-completions` binding.
-- [ ] The requested model is extracted without mutating the original request body.
-- [ ] Route lookup uses consumer, protocol, and requested model.
-- [ ] A missing or disabled route fails before any upstream request is made.
-- [ ] Gateway authorization is removed and the selected provider credential is injected upstream.
-- [ ] The gateway key and client authorization value never reach the upstream server.
-- [ ] Hop-by-hop headers are removed in both directions.
-- [ ] Normal JSON status, safe headers, and body are returned without schema conversion.
-- [ ] Native upstream errors are preserved when safe.
-- [ ] SSE event order and payloads are preserved without buffering the full stream.
-- [ ] Client cancellation aborts the upstream request where the runtime supports it.
-- [ ] Each request receives a gateway correlation ID distinct from any provider request ID.
-- [ ] Logs contain no gateway key, provider credential, full prompt, or full response.
-- [ ] Domain and application tests do not require a Next.js runtime.
-- [ ] The affected flow is verified end to end against the integration upstream.
-- [ ] Repository checks pass.
+- [ ] Every accepted request has a correlation ID visible to the caller and operator.
+- [ ] Client cancellation and configured upstream timeout terminate work and produce a defined final
+      lifecycle state.
+- [ ] The header policy is documented and covered by integration tests for all protocols.
+- [ ] Streaming integration tests prove that usage observation does not buffer or delay delivery.
+- [ ] Network, upstream HTTP, malformed response, and parser failures have deterministic outcomes.
+- [ ] Request limits are enforced before unbounded resource use.
 
-### System Capability at Completion
+## 4. Phase 3: Consumer, API Key, and Deterministic Routing Control Plane
 
-The gateway can safely proxy one native protocol through development configuration. Configuration,
-usage, and billing are not durable.
-
-## 7. Phase 2 — Multi-Protocol Binding Support
+**Status:** Not implemented
 
 ### Outcome
 
-The gateway supports the three initial native protocol handlers, and one provider can expose
-multiple independent protocol bindings without any protocol conversion.
+Each caller authenticates as a durable consumer and resolves an explicit, deterministic route from
+consumer, inbound protocol, and requested public model to an enabled provider connection and
+upstream model.
 
-### Dependencies
+### Current Evidence
 
-Phase 1 complete.
+- Provider records and per-protocol configuration are durable.
+- Current name-ordered selection and `x-provider-name` provide a small local routing mechanism.
+- Protocol identities are explicit in code and provider configuration.
 
-### Scope
+### Remaining Work
 
-- Add `openai.responses` for `POST /v1/responses`.
-- Add `anthropic.messages` for `POST /v1/messages`.
-- Generalize the protocol registry and handler contracts using the Phase 1 boundary.
-- Protocol-specific request metadata extraction.
-- Protocol-specific request and response header policies.
-- Protocol-specific non-streaming and SSE observers.
-- Provider configuration with multiple bindings under one provider.
-- Strict same-protocol route eligibility.
-- Usage observations may be emitted in memory for verification, but durable metering remains Phase 4.
-
-### Primary Deliverables
-
-- OpenAI Responses handler and tests.
-- Anthropic Messages handler and tests.
-- Shared protocol conformance test suite.
-- Multi-binding provider development configuration.
-- Native endpoint integration tests for all three handlers.
-- Tests proving that cross-protocol bindings are ineligible.
-
-### Explicit Exclusions
-
-- OpenAI-to-Anthropic or Anthropic-to-OpenAI conversion.
-- Cross-protocol fallback.
-- Generic arbitrary-path reverse proxying.
-- Durable control-plane storage.
-- Durable usage or billing records.
-- Automatic provider model discovery.
+- Add consumers and gateway API keys with non-secret identifiers and strong one-way secret hashes.
+- Define creation, scoped display, rotation, revocation, expiration, and audit behavior for keys.
+- Separate providers, provider connections, protocol bindings, model deployments, and gateway
+  routes instead of storing them in one provider row.
+- Add consumer-specific route management and explicit public-model-to-upstream-model mapping.
+- Define deterministic conflict handling, route precedence, enablement checks, and transactional
+  configuration changes.
+- Move provider credentials behind an encryption or external secret-management boundary.
+- Remove the insecure default gateway token after a migration path for local users is defined.
 
 ### Acceptance Criteria
 
-- [ ] The gateway exposes all three native endpoints.
-- [ ] Each endpoint selects its built-in protocol handler by method and path.
-- [ ] One provider can be configured with multiple protocol bindings using independent endpoints and
-      credential/header strategies.
-- [ ] A handler forwards only to bindings with the same protocol identifier.
-- [ ] No handler transforms an OpenAI payload into an Anthropic payload or the reverse.
-- [ ] Requested model extraction is correct for every supported protocol.
-- [ ] Safe header behavior is tested independently for every protocol.
-- [ ] Normal and streaming responses preserve each protocol's native semantics.
-- [ ] Observer parsing failure does not break an otherwise valid client stream.
-- [ ] Existing Phase 1 behavior remains compatible.
-- [ ] Protocol conformance and end-to-end tests pass.
-- [ ] Repository checks pass.
+- [ ] Raw gateway API-key secrets are never stored and cannot be recovered from the database.
+- [ ] Key rotation and revocation take effect predictably and are audited.
+- [ ] A disabled consumer, key, route, provider, connection, binding, or deployment is rejected
+      before upstream work begins.
+- [ ] Routing is deterministic for consumer + protocol + requested public model.
+- [ ] Model substitution occurs only through an explicit configured mapping.
+- [ ] Provider credentials are exposed only at the upstream request boundary.
+- [ ] Concurrent control-plane updates cannot leave partially valid routing configuration.
 
-### System Capability at Completion
+## 5. Phase 4: Authoritative Request Metering and Provider Cost
 
-The gateway can proxy all initial native protocols and represent multiple protocol bindings per
-provider through development configuration. Configuration, usage, and billing are still not durable.
-
-## 8. Phase 3 — Durable Consumer and Routing Control Plane
+**Status:** Partially implemented
 
 ### Outcome
 
-Consumers, gateway keys, providers, protocol bindings, model routes, and enabled states survive
-process restarts and can be managed through a minimal protected internal interface.
+Every accepted gateway request and every upstream attempt has a durable, idempotently finalized
+lifecycle, normalized usage provenance, and an explainable provider cost outcome.
 
-### Dependencies
+### Current Evidence
 
-Phase 2 complete.
+- Successful upstream starts that receive a response produce asynchronous SQLite usage rows.
+- JSON and SSE parsers normalize input, output, cache-read, and cache-creation token components.
+- Missing usage is represented explicitly and yields `partial` or `unavailable` cost states.
+- Model overrides, catalog fallback pricing, provider multipliers, integer microdollar calculations,
+  and per-request rate snapshots exist.
+- Historical usage snapshots are not recalculated when current pricing changes.
 
-### Decision Gate
+### Remaining Work
 
-Before implementation, select and document:
-
-- database and migration tooling;
-- transaction strategy;
-- provider secret-storage boundary;
-- gateway key format and hashing algorithm; and
-- minimal management surface: protected API, CLI, seed workflow, or an intentionally small UI.
-
-### Scope
-
-- Durable consumers.
-- Hashed gateway API keys with identifiers, enabled state, expiry, rotation, and revocation.
-- Durable providers and provider connections or equivalent physical model.
-- Durable protocol bindings referencing built-in protocol identifiers.
-- Durable model deployments or route-level upstream model mappings.
-- Durable gateway routes and deterministic priority.
-- Billing-profile references on routes, even if billing execution remains Phase 4.
-- Framework-neutral repository ports used by gateway application services.
-- Minimal protected management path.
-- Configuration audit metadata.
-
-### Primary Deliverables
-
-- Database schema and migrations.
-- Repository interfaces and production adapters.
-- Consumer and API-key management.
-- Provider, binding, and route management.
-- Seed or migration path from Phase 2 development configuration.
-- Integration tests against the selected database.
-- Operational documentation for setup, rotation, and revocation.
-
-### Explicit Exclusions
-
-- Charging or balance deduction.
-- Usage-derived analytics.
-- Advanced RBAC.
-- Full public administration product.
-- Health-aware routing and provider failover.
-- Quotas and rate limits.
+- Add separate gateway-request and upstream-attempt records with monotonic lifecycle transitions.
+- Create the request record before routing/upstream work so authentication, routing, network,
+  timeout, cancellation, and persistence failures can be represented according to retention policy.
+- Define idempotency keys and transaction/outbox behavior for finalization and retries.
+- Record usage source (`provider`, `estimated`, or other explicit provenance), raw protocol fields
+  needed for audit, and parser/schema version.
+- Version the pricing catalog and calculation algorithm in each cost result, not only selected rates
+  and multiplier.
+- Define reconciliation for missing, partial, contradictory, late, and parse-failed usage.
+- Decide retention and redaction rules for errors and provider payload fragments.
 
 ### Acceptance Criteria
 
-- [ ] Restarting the application does not lose consumers, keys, providers, bindings, or routes.
-- [ ] Raw gateway key secrets are never stored and are returned only at creation time.
-- [ ] A disabled, expired, revoked, or invalid key is rejected before routing.
-- [ ] A disabled consumer, provider, connection, binding, deployment, or route is rejected before
-      forwarding.
-- [ ] Key rotation supports a documented overlap window and independent revocation.
-- [ ] Provider credentials are referenced through the chosen secret boundary and do not appear in
-      ordinary configuration records or logs.
-- [ ] Routing is deterministic for consumer + protocol + requested model.
-- [ ] Persistent protocol identifiers are validated against the built-in registry.
-- [ ] Database-specific types do not leak into protocol handler or route resolver contracts.
-- [ ] Configuration changes retain actor, timestamp, and changed-resource metadata.
-- [ ] Database migrations and integration tests pass from a clean database.
-- [ ] The affected runtime flow is verified end to end after a process restart.
-- [ ] Repository checks pass.
+- [ ] Every accepted request has one durable request record and at least one explicit attempt
+      outcome, including failures before an upstream response.
+- [ ] Retrying persistence or finalization cannot duplicate request, attempt, usage, or provider-cost
+      facts.
+- [ ] Usage records identify their source, protocol parser version, and upstream attempt.
+- [ ] Missing, partial, late, and parse-failed usage remain distinct and reconcilable.
+- [ ] Provider cost records identify catalog version, algorithm version, exact rates, multiplier,
+      currency, units, and rounding rule.
+- [ ] Provider cost finalization never delays or changes native response delivery.
 
-### System Capability at Completion
+## 6. Phase 5: Immutable Consumer Billing Ledger
 
-The gateway supports durable consumer authentication and routing configuration. It can be operated
-without rebuilding or restarting to change ordinary configuration, subject to the selected minimal
-management surface. It does not yet provide durable billing.
-
-## 9. Phase 4 — Usage Metering and Immutable Billing Ledger
+**Status:** Not implemented
 
 ### Outcome
 
-Gateway requests produce durable normalized usage and idempotent immutable charges using an exact
-versioned billing profile, without delaying or changing native response delivery.
+Consumer billing is a separate, auditable accounting system that converts eligible authoritative
+usage into idempotent immutable charges and uses compensating adjustments for corrections.
 
-### Dependencies
+### Current Evidence
 
-Phase 3 complete.
+- Provider cost snapshots demonstrate fixed-precision arithmetic and historical rate capture that
+  can inform the future implementation.
+- No current table or workflow constitutes consumer billing.
 
-### Decision Gate
+### Remaining Work
 
-Before implementation, select and document:
-
-- credit-based, currency-based, or dual provider-cost/consumer-price semantics;
-- supported currency or credit units;
-- decimal precision and rounding rules;
-- billing components for each initial protocol;
-- policy for missing, partial, estimated, and later provider-reconciled usage; and
-- transaction/outbox strategy for request finalization and ledger posting.
-
-### Scope
-
-- Durable gateway requests and upstream attempts.
-- Stable lifecycle and terminal statuses.
-- Non-streaming and streaming usage observers.
-- Protocol-neutral normalized usage records.
-- Usage source, completeness, parser version, and redacted raw usage provenance.
-- Versioned billing profiles and component items.
-- Fixed-precision billing calculations.
-- Idempotent immutable charge records.
-- Compensating adjustment records.
-- Recovery for charge finalization failure without repeating the upstream request.
-- Essential reconciliation queries and operational commands.
-
-### Primary Deliverables
-
-- Request, attempt, usage, billing-profile, charge, and adjustment persistence.
-- Protocol usage parsers with captured fixtures.
-- Billing calculation domain service and precision tests.
-- Idempotent finalization application service.
-- Recovery worker or command for pending finalization.
-- Reconciliation tests for duplicates, missing usage, partial streams, cancellation, and adjustments.
-
-### Explicit Exclusions
-
-- Rich analytics dashboards.
-- Analytics as billing authority.
-- Automatic estimated charging unless explicitly approved by the decision gate.
-- Full balance reservation or prepaid wallet semantics.
-- Automatic retry and failover.
+- Define consumer billing semantics: currency, credits, or both; billable usage sources; treatment
+  of partial usage; minimums; multipliers; tiering; and rounding.
+- Add independently versioned billing profiles and profile items, separate from provider cost
+  configuration.
+- Add immutable charge and adjustment records with stable idempotency keys.
+- Define transaction/outbox boundaries between metering finalization and ledger posting.
+- Implement recovery, replay, reconciliation, and audit workflows without replaying provider calls.
+- Add authorization boundaries for billing configuration and adjustments.
 
 ### Acceptance Criteria
 
-- [ ] A completed non-streaming request produces normalized usage when the provider reports it.
-- [ ] A completed stream produces equivalent normalized usage without delaying, reordering, or
-      rewriting client-visible events.
-- [ ] Provider-reported zero and unavailable usage remain distinguishable.
-- [ ] Usage records retain protocol, provider, binding, requested model, resolved model, source,
-      completeness, and parser version.
-- [ ] Reprocessing the same request or finalization event does not create a duplicate charge.
-- [ ] Every charge references one usage record and one exact billing-profile version.
-- [ ] Charge calculations use fixed precision and the documented rounding policy.
-- [ ] Updating a billing profile affects only future charges.
-- [ ] Existing charge records cannot be edited.
-- [ ] Corrections create linked compensating adjustments.
-- [ ] Unknown, partial, and parse-failed usage follows an explicit policy and is never silently
-      converted to zero.
-- [ ] A ledger failure can be retried without replaying the provider request.
-- [ ] Client cancellation and ambiguous upstream termination do not claim zero provider usage.
-- [ ] Metering, idempotency, recovery, and end-to-end streaming tests pass.
-- [ ] Repository checks pass.
+- [ ] Each charge references one eligible usage fact and one exact billing-profile version.
+- [ ] Charge creation is idempotent under retries and concurrent workers.
+- [ ] Updating a billing profile affects future charges only.
+- [ ] Corrections use linked compensating adjustments; posted facts are never edited or deleted.
+- [ ] Ledger recovery can resume independently from provider request execution.
+- [ ] Provider cost and consumer billing remain separately named, calculated, stored, and reported.
 
-### System Capability at Completion
+## 7. Phase 6: Rebuildable Analytics and Operational Diagnostics
 
-The gateway has durable, auditable metering and billing for supported provider-reported usage. Rich
-reporting is still limited to reconciliation and operational queries.
-
-## 10. Phase 5 — Analytics and Operational Visibility
+**Status:** Partially implemented
 
 ### Outcome
 
-Operators can understand traffic, routing, latency, errors, usage completeness, provider cost, and
-consumer charges through rebuildable projections while tracing any request back to authoritative
-records.
+Operators can trace request behavior and analyze traffic, reliability, usage, provider cost, and
+consumer billing through versioned projections that can be rebuilt and reconciled from
+authoritative records.
 
-### Dependencies
+### Current Evidence
 
-Phase 4 complete.
+- The provider dashboard aggregates time to first byte, tokens, and estimated cost by provider and
+  selectable period.
+- The usage dashboard supports pagination and filters for model, client user-agent, protocol,
+  streaming mode, response status, and time period.
+- Both views query the current usage table directly.
 
-### Scope
+### Remaining Work
 
-- Rebuildable analytics projections.
-- Consumer, provider, protocol, model, and route aggregates.
-- Latency, TTFT, byte-count, success, error, cancellation, and metering-gap metrics.
-- Usage, provider cost, consumer charge, and adjustment reporting.
-- Correlation-ID request diagnostics.
-- Route-decision and upstream-attempt diagnostics.
-- Ledger-to-usage and analytics-to-ledger reconciliation views.
-- Redacted operational UI or internal reporting endpoints.
-- Basic health signals and alerts for routing and finalization failures.
-
-### Primary Deliverables
-
-- Projection/event consumers or equivalent scheduled aggregation mechanism.
-- Rebuild command and checkpoint strategy.
-- Request diagnostics view.
-- Aggregate reporting interfaces.
-- Reconciliation views and discrepancy alerts.
-- Data retention and redaction documentation.
-
-### Explicit Exclusions
-
-- Analytics records as editable billing records.
-- Direct charge mutation from a dashboard.
-- Production retry/failover policy.
-- Complete quota and abuse-prevention system.
+- Establish correlation across ingress request, route decision, provider connection, upstream
+  attempt, usage, provider cost, and eventual consumer charge.
+- Define versioned analytics events or another authoritative projection input.
+- Build disposable projections with checkpoints, replay, schema/version migration, and validation.
+- Add request and error-rate views, latency distributions, streaming completion outcomes, metering
+  gaps, cost completeness, and provider health diagnostics.
+- Add usage-to-provider-cost, usage-to-ledger, and projection-to-source reconciliation.
+- Define metric labels and retention to prevent unbounded cardinality and sensitive-data leakage.
 
 ### Acceptance Criteria
 
-- [ ] Analytics projections can be deleted and rebuilt from authoritative source records.
-- [ ] Rebuilding analytics does not add, remove, or modify charge and adjustment records.
-- [ ] Operators can trace a correlation ID to consumer, route decision, provider binding, upstream
-      attempt, usage outcome, billing profile, and charge status.
-- [ ] Reports distinguish provider failures, client errors, gateway errors, route misses,
-      cancellations, missing usage, and parsing failures.
-- [ ] Usage and charge aggregates can be reconciled to source records.
-- [ ] Provider cost and consumer charge are labelled and reported separately when both exist.
-- [ ] Sensitive headers, credentials, prompts, and responses are absent from ordinary analytics.
-- [ ] Projection rebuild, reconciliation, redaction, and end-to-end diagnostics tests pass.
-- [ ] Repository checks pass.
+- [ ] An operator can trace one correlation ID across all implemented lifecycle records.
+- [ ] Analytics projections can be deleted and rebuilt without changing authoritative records.
+- [ ] Rebuilds are resumable, versioned, and produce reconciliation totals.
+- [ ] Dashboards clearly distinguish provider cost, consumer billing, missing usage, and incomplete
+      calculations.
+- [ ] Operational views expose routing, upstream, streaming, parser, metering, and ledger failures.
+- [ ] Analytics aggregates are never used as billing authority.
 
-### System Capability at Completion
+## 8. Phase 7: Production Hardening
 
-The gateway is operationally inspectable and financially reconcilable. Analytics remains derived and
-cannot alter ledger facts.
-
-## 11. Phase 6 — Production Hardening
+**Status:** Not implemented
 
 ### Outcome
 
-The gateway is ready for controlled production traffic with documented reliability, security,
-capacity, recovery, and incident-response behavior.
+The gateway can operate under untrusted production traffic with explicit security, reliability,
+capacity, observability, backup, and recovery guarantees.
 
-### Dependencies
+### Current Evidence
 
-Phase 5 complete.
+- SQLite WAL mode, schema migrations, strict TypeScript, linting, formatting checks, and unit tests
+  provide an engineering baseline.
+- Model discovery and dashboard connection tests have explicit timeouts.
+- Current limitations are documented in the README and architecture.
 
-### Decision Gate
+### Remaining Work
 
-Before implementation, select and validate:
-
-- production runtime and deployment topology;
-- database, connection-pool, and queue capacity;
-- request, connection, and stream duration limits;
-- consumer quota and rate-limit semantics;
-- retryable failure classes;
-- health, circuit-breaker, priority, and failover policy;
-- secret rotation and audit-retention requirements; and
-- service-level objectives and alert thresholds.
-
-### Scope
-
-- Request-size, concurrency, timeout, and backpressure limits.
-- Consumer quotas and rate limits before upstream forwarding.
-- Provider health tracking and circuit breaking.
-- Explicit retry and failover policy with attempt records.
-- Prevention of duplicate usage and charges across retries.
-- Secret rotation procedures.
-- Key and configuration audit retention.
-- Stream behavior validation through the production proxy/runtime path.
-- Capacity and load testing.
-- Alerting and incident runbooks.
-- Backup, restore, projection rebuild, and ledger reconciliation procedures.
-- Security review and abuse controls.
-
-### Primary Deliverables
-
-- Production deployment configuration and runbooks.
-- Load and soak test harnesses for normal and SSE traffic.
-- Rate-limit, quota, backpressure, retry, circuit-breaker, and failover components.
-- Alerts for routing failures, provider availability, metering gaps, ledger failures, and capacity.
-- Secret and gateway-key rotation runbooks.
-- Backup, restore, reconciliation, and incident-response exercises.
-
-### Explicit Exclusions
-
-Any feature not approved through the production decision gate. Production hardening is not a license
-to add protocol conversion, arbitrary proxying, or unbounded provider retries.
+- Add per-consumer and global rate limits, quotas, concurrency controls, and overload behavior.
+- Define safe retry, failover, health checking, circuit breaking, and attempt/charge idempotency.
+- Encrypt or externalize provider secrets and establish rotation and access-audit procedures.
+- Add structured logs, metrics, traces, service-level objectives, alerts, and sensitive-data
+  redaction.
+- Validate capacity for large bodies, long streams, slow clients, database contention, and
+  multi-process deployment.
+- Establish migration rollout/rollback, backups, restore drills, retention, and disaster recovery.
+- Perform threat modeling and security testing for SSRF, header injection, credential leakage,
+  denial of service, dashboard authorization, and supply-chain risks.
 
 ### Acceptance Criteria
 
-- [ ] Gateway failures cannot expose gateway keys, provider credentials, or raw sensitive payloads.
-- [ ] Quotas and rate limits reject traffic before provider forwarding.
-- [ ] Concurrency and backpressure prevent unbounded memory and connection growth.
-- [ ] Retry and failover execute only for documented failure classes.
-- [ ] A retry or failover cannot create duplicate usage records or consumer charges.
-- [ ] No failover occurs after client-visible streaming has begun unless a separately documented
-      native protocol contract makes it safe.
-- [ ] Provider circuit breakers recover according to tested state transitions.
-- [ ] Long-lived SSE behavior, cancellation, connection reuse, and maximum duration are validated in
-      the selected production runtime.
-- [ ] Load and soak tests meet the documented service-level objectives.
-- [ ] Secret and gateway-key rotation have been exercised without traffic interruption beyond the
-      documented window.
-- [ ] Backup and restore have been exercised.
-- [ ] Analytics can be rebuilt and ledger reconciliation can be run after recovery.
-- [ ] Alerts and incident runbooks have been tested with representative failures.
-- [ ] A security review finds no unresolved release-blocking issue.
-- [ ] Repository and end-to-end production-path checks pass.
+- [ ] Rate, quota, concurrency, payload, and timeout limits are enforced and observable.
+- [ ] Retry or failover cannot duplicate usage, provider-cost facts, or consumer charges.
+- [ ] Secrets are encrypted or externally managed, rotatable, access-controlled, and audited.
+- [ ] Load and failure tests validate documented capacity and degradation behavior.
+- [ ] Backup restoration and analytics rebuild are exercised in a clean environment.
+- [ ] Alerts cover authentication, routing, upstream availability, metering gaps, ledger failures,
+      persistence pressure, and capacity.
+- [ ] A production security review has no unresolved critical findings.
 
-### System Capability at Completion
+## 9. Cross-Phase Rules
 
-The gateway is ready for controlled production use within documented capacity, protocol, provider,
-and billing boundaries.
+The following constraints apply to all future phases:
 
-## 12. Phase Execution Workflow
-
-For every phase:
-
-1. Confirm the phase scope and resolve its decision gate.
-2. Update the phase status to **In progress**.
-3. Write or update an implementation-specific plan before significant code changes.
-4. Implement the smallest end-to-end slice that satisfies the phase outcome.
-5. Add automated tests at the domain, integration, and affected runtime boundaries.
-6. Exercise the affected flow end to end, including streaming where applicable.
-7. Review security, secret redaction, cancellation, and failure behavior.
-8. Update architecture documentation for approved changes.
-9. Record known limitations and operational instructions.
-10. Verify every acceptance criterion.
-11. Update the phase status to **Complete** only after verification passes.
-12. Begin the next phase in a separate scoped change.
-
-A phase with failing tests, incomplete runtime verification, unresolved data-integrity behavior, or an
-unresolved release-blocking security issue remains **In progress** or **Blocked**.
-
-## 13. Change Control
-
-Architecture invariants may change only through an explicit documented decision. In particular,
-implementation convenience must not silently introduce:
-
-- protocol conversion;
-- arbitrary upstream URLs supplied by consumers;
-- forwarding client credentials to providers;
-- full-payload logging;
-- estimated usage represented as provider-reported usage;
-- mutable historical charges;
-- analytics aggregates used as ledger facts; or
-- retries without attempt and charge idempotency.
-
-When an approved decision changes an invariant or phase boundary, update
-[`docs/architecture.md`](./architecture.md) and this document in the same change.
+1. Native protocol identity is preserved unless a separately designed conversion product is added.
+2. Model substitution is explicit configuration, never an implicit fallback.
+3. Missing usage is not zero usage.
+4. Client response delivery does not wait for analytics or consumer billing.
+5. Provider cost and consumer billing remain separate concepts and records.
+6. Posted consumer charges are immutable; corrections are adjustments.
+7. Analytics is rebuildable and never the accounting source of truth.
+8. Provider credentials and gateway credentials are never forwarded across the wrong trust
+   boundary.
+9. Retry and failover require durable attempts and idempotent downstream effects first.
+10. Sensitive prompts and responses are not persisted by default.
