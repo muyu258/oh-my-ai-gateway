@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Download, LoaderCircle, PlugZap } from "lucide-react";
+import { ChevronDown, Download, LoaderCircle, Pin, PlugZap } from "lucide-react";
 import { useState } from "react";
 
 import { FloatingInput } from "#/components/floating-input";
@@ -39,15 +39,23 @@ export function ProtocolBindingEditor({
         const expanded = checked && expandedProtocol === option.value;
         const actionPending = activeAction?.protocol === option.value && pending;
         const toggleProtocol = () => {
+          const protocols = {
+            ...form.protocols,
+            [option.value]: {
+              endpoint: protocolConfig?.endpoint ?? "",
+              enabled: !checked,
+            },
+          };
+          const testProtocol =
+            !checked && !form.testProtocol
+              ? option.value
+              : checked && form.testProtocol === option.value
+                ? (protocolOptions.find(({ value }) => protocols[value]?.enabled)?.value ?? null)
+                : form.testProtocol;
           onChange({
             ...form,
-            protocols: {
-              ...form.protocols,
-              [option.value]: {
-                endpoint: protocolConfig?.endpoint ?? "",
-                enabled: !checked,
-              },
-            },
+            protocols,
+            testProtocol,
           });
           if (checked && expandedProtocol === option.value) setExpandedProtocol(null);
         };
@@ -81,6 +89,16 @@ export function ProtocolBindingEditor({
               </span>
 
               <div className="relative ml-auto flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={!checked || pending}
+                  onClick={() => onChange({ ...form, testProtocol: option.value })}
+                  aria-label={`Use ${option.label} as default test protocol`}
+                  title="Set default test protocol"
+                  className={`flex size-8 items-center justify-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-35 ${form.testProtocol === option.value ? "bg-white text-[#0284c7]" : "text-[#667085] hover:bg-white hover:text-[#344054]"}`}
+                >
+                  <Pin className="size-4" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   disabled={!hasPersistedProvider || !checked || pending}

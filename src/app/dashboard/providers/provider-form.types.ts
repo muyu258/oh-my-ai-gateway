@@ -2,7 +2,7 @@ import type { ProviderRecord } from "#/lib/database/drizzle/schema";
 
 export type ProviderFormInput = Pick<
   ProviderRecord,
-  "name" | "models" | "protocols" | "enabled"
+  "name" | "models" | "protocols" | "enabled" | "testProtocol"
 > & {
   testModel: NonNullable<ProviderRecord["testModel"]>;
   websiteUrl: NonNullable<ProviderRecord["websiteUrl"]>;
@@ -42,6 +42,8 @@ export type ProviderTestResult =
       ok: true;
       latencyMs: number;
       model: string;
+      upstreamModel: string;
+      protocol: import("#/lib/protocol/protocol.types").ProtocolType;
     }
   | {
       ok: false;

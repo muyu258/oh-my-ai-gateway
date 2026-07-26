@@ -47,6 +47,7 @@ import { ProtocolIcon } from "#/components/icons/protocol";
 import { OverflowTooltip } from "#/components/overflow-tooltip";
 import { TableFilter } from "#/components/table-filter";
 import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
+import { getProviderModelCount } from "#/lib/provider/provider-models";
 import { protocolOptions } from "#/lib/protocol/protocol.registry";
 import {
   responseTimeBadge,
@@ -163,29 +164,30 @@ function ProviderRowCells({
   const responseTime = responseTimeBadge(provider.averageResponseTimeMs);
   const cachedInputPercentage = getCachedInputPercentage(provider);
   const hasTokens = provider.inputTokens !== null || provider.outputTokens !== null;
+  const modelCount = getProviderModelCount(provider.models);
 
   return (
     <>
       <DataTableCell pinned="left">
         <div className="flex items-center justify-center">
           {provider.websiteUrl ? (
-            <OverflowTooltip content={`${provider.name}(${provider.models.length})`}>
+            <OverflowTooltip content={`${provider.name}(${modelCount})`}>
               <a
                 href={provider.websiteUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="min-w-0 max-w-full truncate font-medium text-[#0369a1] transition hover:text-[#075985]"
               >
-                {provider.name}({provider.models.length})
+                {provider.name}({modelCount})
               </a>
             </OverflowTooltip>
           ) : (
-            <OverflowTooltip content={`${provider.name}(${provider.models.length})`}>
+            <OverflowTooltip content={`${provider.name}(${modelCount})`}>
               <p
                 tabIndex={0}
                 className="max-w-full truncate font-medium text-[#101828] outline-none"
               >
-                {provider.name}({provider.models.length})
+                {provider.name}({modelCount})
               </p>
             </OverflowTooltip>
           )}
@@ -304,7 +306,11 @@ function ProviderRowCells({
               !Object.values(provider.protocols).some((config) => config.enabled)
             }
             aria-label={`Test ${provider.name}`}
-            title={provider.enabled ? "Test first protocol" : "Enable provider before testing"}
+            title={
+              provider.enabled
+                ? "Test default model and protocol"
+                : "Enable provider before testing"
+            }
             className="flex size-8 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {testingProvider === provider.id ? (

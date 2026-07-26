@@ -6,7 +6,7 @@ type ProviderModelTagProps = {
   width: "content" | "fixed";
   disabled?: boolean;
   leadingIcon?: ReactNode;
-  trailingAction?: ReactNode;
+  actions?: ReactNode;
   onClick?: () => void;
   pressed?: boolean;
   ariaLabel?: string;
@@ -25,7 +25,7 @@ export function ProviderModelTag({
   width,
   disabled = false,
   leadingIcon,
-  trailingAction,
+  actions,
   onClick,
   pressed,
   ariaLabel,
@@ -36,12 +36,14 @@ export function ProviderModelTag({
       {leadingIcon !== undefined ? (
         <span className="flex size-4 shrink-0 items-center justify-center">{leadingIcon}</span>
       ) : null}
-      <span className={`min-w-0 truncate ${width === "content" ? "max-w-56" : "flex-1"}`}>
+      <span
+        className={`min-w-0 break-all leading-4 ${width === "content" ? "max-w-72" : "flex-1"}`}
+      >
         {children}
       </span>
     </>
   );
-  const primaryClasses = `flex h-full min-w-0 items-center gap-2 rounded-md px-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0284c7] ${trailingAction ? "pr-1" : ""}`;
+  const primaryClasses = `flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0284c7] ${actions ? "pr-12" : ""}`;
   const interactionClasses =
     onClick && !disabled
       ? tone === "neutral"
@@ -54,7 +56,7 @@ export function ProviderModelTag({
   return (
     <span
       data-provider-model-tag
-      className={`group inline-flex h-8 max-w-full items-center rounded-md font-mono text-xs shadow-[0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-inset transition-colors ${width === "fixed" ? "w-56" : "w-fit"} ${toneClasses[tone]} ${interactionClasses} ${disabled && tone !== "muted" ? "opacity-60" : ""}`}
+      className={`group relative inline-flex h-7 max-w-full items-stretch rounded-md font-mono text-[11px] shadow-[0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-inset transition-colors ${width === "fixed" ? "w-56" : "w-fit"} ${toneClasses[tone]} ${interactionClasses} ${disabled && tone !== "muted" ? "opacity-60" : ""}`}
     >
       {onClick ? (
         <button
@@ -73,10 +75,8 @@ export function ProviderModelTag({
           {content}
         </span>
       )}
-      {trailingAction ? (
-        <span className="mr-1 flex size-6 shrink-0 items-center justify-center">
-          {trailingAction}
-        </span>
+      {actions ? (
+        <span className="absolute right-1 top-1 flex items-center gap-0.5">{actions}</span>
       ) : null}
     </span>
   );

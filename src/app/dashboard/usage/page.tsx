@@ -31,7 +31,12 @@ import { OverflowTooltip } from "#/components/overflow-tooltip";
 import { TableFilter } from "#/components/table-filter";
 import { getUsages } from "#/lib/database/usage.repository";
 import type { UsageRecord } from "#/lib/database/usage.repository";
-import { isUsagePeriodFilter, isUsageStatusFilter, isUsageStreamFilter } from "#/lib/usage/filters";
+import {
+  isUsagePeriodFilter,
+  isUsagePricingSourceFilter,
+  isUsageStatusFilter,
+  isUsageStreamFilter,
+} from "#/lib/usage/filters";
 import { isProtocolType, protocolOptions } from "#/lib/protocol/protocol.registry";
 
 export const metadata: Metadata = {
@@ -142,21 +147,31 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
   const requestedStatus = firstValue(resolvedSearchParams.status);
   const requestedPeriod = firstValue(resolvedSearchParams.period);
   const requestedStream = firstValue(resolvedSearchParams.stream);
+  const requestedPricingSource = firstValue(resolvedSearchParams.pricingSource);
   const status = isUsageStatusFilter(requestedStatus) ? requestedStatus : "all";
   const period = isUsagePeriodFilter(requestedPeriod) ? requestedPeriod : "7d";
   const stream = isUsageStreamFilter(requestedStream) ? requestedStream : "all";
+  const pricingSource = isUsagePricingSourceFilter(requestedPricingSource)
+    ? requestedPricingSource
+    : "all";
   const requestedPage = Number.parseInt(firstValue(resolvedSearchParams.page) ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const { records, total } = await getUsages({
-    filters: { model, client, protocolType, stream, status, period },
+    filters: { model, client, protocolType, stream, status, period, pricingSource },
     page,
     pageSize: PAGE_SIZE,
   });
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const activeFilters = Boolean(
-    model || client || protocolType || stream !== "all" || status !== "all" || period !== "7d",
+    model ||
+    client ||
+    protocolType ||
+    stream !== "all" ||
+    status !== "all" ||
+    period !== "7d" ||
+    pricingSource !== "all",
   );
   const queryParams = new URLSearchParams();
   if (model) queryParams.set("model", model);
@@ -165,6 +180,7 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
   if (stream !== "all") queryParams.set("stream", stream);
   if (status !== "all") queryParams.set("status", status);
   if (period !== "7d") queryParams.set("period", period);
+  if (pricingSource !== "all") queryParams.set("pricingSource", pricingSource);
 
   const tableFooter = (
     <>
@@ -274,7 +290,20 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
                   <TableFilter label="Client" parameter="client" placeholder="Enter client name" />
                 </DataTableHead>
                 <DataTableHead>Tokens</DataTableHead>
-                <DataTableHead>Cost</DataTableHead>
+                <DataTableHead>
+                  <TableFilter
+                    label="Cost"
+                    parameter="pricingSource"
+                    defaultValue="all"
+                    options={[
+                      { label: "All pricing sources", value: "all" },
+                      { label: "Provider override", value: "provider_override" },
+                      { label: "Global catalog", value: "global_catalog" },
+                      { label: "Global fallback", value: "global_fallback" },
+                      { label: "Unknown / legacy", value: "unknown" },
+                    ]}
+                  />
+                </DataTableHead>
                 <DataTableHead>Duration</DataTableHead>
                 <DataTableHead pinned="right">
                   <TableFilter
@@ -326,12 +355,24 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
                           ) : (
                             <span className="text-[#98a2b3]">—</span>
                           )}
-                          <OverflowTooltip content={record.model ?? "-"}>
+                          <OverflowTooltip
+                            content={
+                              record.model &&
+                              record.upstreamModel &&
+                              record.model !== record.upstreamModel
+                                ? `${record.model} → ${record.upstreamModel}`
+                                : (record.model ?? record.upstreamModel ?? "-")
+                            }
+                          >
                             <p
                               tabIndex={0}
                               className="min-w-0 truncate font-medium text-[#101828] outline-none"
                             >
-                              {record.model ?? "-"}
+                              {record.model &&
+                              record.upstreamModel &&
+                              record.model !== record.upstreamModel
+                                ? `${record.model} → ${record.upstreamModel}`
+                                : (record.model ?? record.upstreamModel ?? "-")}
                             </p>
                           </OverflowTooltip>
                           <span
@@ -397,19 +438,30 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
                         )}
                       </DataTableCell>
                       <DataTableCell className="whitespace-nowrap">
-                        {record.costMicros !== null &&
-                        (record.costStatus === "complete" || record.costStatus === "partial") ? (
-                          <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
-                            {formatCost(record.costMicros)}
-                            {record.costStatus === "partial" ? (
-                              <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
-                                Partial
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-[#98a2b3]">—</span>
-                        )}
+                        <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
+                          {record.costMicros !== null &&
+                          (record.costStatus === "complete" || record.costStatus === "partial")
+                            ? formatCost(record.costMicros)
+                            : "—"}
+                          {record.pricingSource ? (
+                            <p className="mt-1 font-sans text-[11px] font-medium text-[#667085]">
+                              {
+                                {
+                                  provider_override: "Provider",
+                                  global_catalog: "Global",
+                                  global_fallback: "Fallback",
+                                }[record.pricingSource]
+                              }
+                            </p>
+                          ) : (
+                            <p className="mt-1 font-sans text-[11px] text-[#98a2b3]">Unknown</p>
+                          )}
+                          {record.costStatus === "partial" ? (
+                            <p className="mt-1 font-sans text-[11px] font-medium text-[#b54708]">
+                              Partial
+                            </p>
+                          ) : null}
+                        </div>
                       </DataTableCell>
                       <DataTableCell className="whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5 font-medium tabular-nums text-[#344054]">

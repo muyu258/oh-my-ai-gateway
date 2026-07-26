@@ -26,24 +26,26 @@ export const requestHandler = async ({
     const model = await getModel(request);
     const providers = await getProviders();
     const providerId = request.headers.get("x-provider-id");
-    const provider = selectProvider(providers, protocolType, model, providerId);
+    const selection = selectProvider(providers, protocolType, model, providerId);
     invariant(
-      provider,
+      selection,
       new GatewayError(
         GatewayErrorCode.RouteNotFound,
         "No provider matches this protocol and model",
       ),
     );
+    const { provider, requestedModel, upstreamModel } = selection;
     const { baseUrl, token, protocols } = provider;
     const endpoint = protocols[protocolType]?.endpoint?.trim() || adapter.defaultEndpoint;
 
     const providerRequestStartedAt = performance.now();
     const upstreamResponse = await fetch(
-      transformer({
+      await transformer({
         request,
         options: {
           baseUrl,
-          model,
+          requestedModel,
+          upstreamModel,
           endpoint,
           token,
         },
@@ -52,7 +54,7 @@ export const requestHandler = async ({
     const timeToFirstByteMs = Math.max(0, Math.round(performance.now() - providerRequestStartedAt));
     const trackingResponse = upstreamResponse.clone();
 
-    track(trackingRequest, trackingResponse, adapter, provider, model, {
+    track(trackingRequest, trackingResponse, adapter, provider, requestedModel, upstreamModel, {
       startedAt,
       timeToFirstByteMs,
     });

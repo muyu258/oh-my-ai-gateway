@@ -2,6 +2,9 @@ import { and, asc, avg, eq, gte, isNotNull, sql, sum } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { Provider } from "#/lib/provider/provider.types";
+import { getTestModel, normalizeProviderModels } from "#/lib/provider/provider-models";
+import { protocolTypes } from "#/lib/protocol/protocol.registry";
+import type { ProtocolType } from "#/lib/protocol/protocol.types";
 import { db, sqlite } from "./drizzle/client";
 import { provider, usage, type NewProviderRecord, type ProviderRecord } from "./drizzle/schema";
 import {
@@ -21,12 +24,13 @@ const periodInMilliseconds: Partial<Record<ProviderStatisticsPeriod, number>> = 
   "30d": 30 * 24 * 60 * 60 * 1000,
 };
 
-const sortModels = (models: string[]): string[] =>
-  [...models].sort((left, right) => left.localeCompare(right));
-const getTestModel = (
-  models: string[],
-  testModel: string | null | undefined,
-): string | undefined => (testModel && models.includes(testModel) ? testModel : models[0]);
+const getTestProtocol = (
+  protocols: Provider["protocols"],
+  requested: ProtocolType | null | undefined,
+): ProtocolType | null =>
+  (requested && protocols[requested]?.enabled ? requested : undefined) ??
+  protocolTypes.find((protocol) => protocols[protocol]?.enabled) ??
+  null;
 
 export type ProviderSummary = Pick<
   ProviderRecord,
@@ -35,6 +39,7 @@ export type ProviderSummary = Pick<
   | "order"
   | "models"
   | "testModel"
+  | "testProtocol"
   | "protocols"
   | "websiteUrl"
   | "baseUrl"
@@ -123,6 +128,7 @@ export const getProviderSummaries = async (
       order,
       models,
       testModel,
+      testProtocol,
       protocols,
       websiteUrl,
       baseUrl,
@@ -138,6 +144,7 @@ export const getProviderSummaries = async (
       order,
       models,
       testModel,
+      testProtocol,
       protocols,
       websiteUrl,
       baseUrl,
@@ -160,34 +167,36 @@ export const getProvider = async (id: string): Promise<Provider | undefined> => 
 };
 
 export const createProvider = async (input: CreateProviderInput): Promise<string> => {
-  const models = sortModels(input.models);
+  const models = normalizeProviderModels(input.models);
   const createdAt = input.createdAt instanceof Date ? input.createdAt : new Date();
   const updatedAt = input.updatedAt instanceof Date ? input.updatedAt : createdAt;
   return insertProviderWithNextOrder(sqlite, [
     input.id ?? crypto.randomUUID(),
     input.name,
     JSON.stringify(models),
-    getTestModel(models, input.testModel) ?? null,
+    getTestModel(models, input.testModel),
+    getTestProtocol(input.protocols, input.testProtocol),
     JSON.stringify(input.protocols),
     input.websiteUrl ?? null,
     input.baseUrl ?? null,
     input.token,
     (input.enabled ?? true) ? 1 : 0,
     input.costMultiplier ?? "1",
-    JSON.stringify(input.pricingOverrides ?? {}),
+    input.pricingOverrides ? JSON.stringify(input.pricingOverrides) : null,
     createdAt.getTime(),
     updatedAt.getTime(),
   ]);
 };
 
 export const updateProvider = async (id: string, input: UpdateProviderInput): Promise<void> => {
-  const models = sortModels(input.models);
+  const models = normalizeProviderModels(input.models);
   await db
     .update(provider)
     .set({
       ...input,
       models,
-      testModel: getTestModel(models, input.testModel) ?? null,
+      testModel: getTestModel(models, input.testModel),
+      testProtocol: getTestProtocol(input.protocols, input.testProtocol),
       updatedAt: new Date(),
     })
     .where(eq(provider.id, id));

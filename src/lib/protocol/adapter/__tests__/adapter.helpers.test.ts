@@ -1,6 +1,37 @@
 import { describe, expect, test } from "bun:test";
 
-import { withHeaders } from "../adapter.helpers";
+import { ProtocolType } from "../../protocol.types";
+import type { Provider } from "#/lib/provider/provider.types";
+import { collectModels, withHeaders } from "../adapter.helpers";
+
+const provider = (id: string, models: Provider["models"]): Provider => ({
+  id,
+  name: id,
+  order: 1,
+  models,
+  testModel: Object.keys(models)[0] ?? null,
+  testProtocol: ProtocolType.OpenaiCompatible,
+  protocols: { [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true } },
+  websiteUrl: null,
+  baseUrl: null,
+  token: "secret",
+  enabled: true,
+  costMultiplier: "1",
+  pricingOverrides: null,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+});
+
+describe("collectModels", () => {
+  test("expands aliases and returns a sorted, deduplicated public model list", () => {
+    expect(
+      collectModels([
+        provider("first", { "real-b": { aliases: ["shared", "fast"] } }),
+        provider("second", { "real-a": { aliases: ["shared"] } }),
+      ]),
+    ).toEqual(["fast", "real-a", "real-b", "shared"]);
+  });
+});
 
 describe("withHeaders", () => {
   test("removes gateway, credential, and hop-by-hop headers before applying upstream headers", () => {

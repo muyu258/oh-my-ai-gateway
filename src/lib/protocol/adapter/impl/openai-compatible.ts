@@ -1,7 +1,7 @@
 import { invariant } from "es-toolkit";
 import { ProtocolType } from "../../protocol.types";
 import { protocolRegistry } from "../../protocol.registry";
-import { appendEndpoint, withHeaders } from "../adapter.helpers";
+import { appendEndpoint, withHeaders, withUpstreamModel } from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { createErrorResponse, createModelsResponse } from "./shared/openai.helpers";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
@@ -37,11 +37,12 @@ export const openaiCompatibleAdapter: ProtocolAdapter = {
     invariant(authorization, new Error("Bearer gateway token is required"));
     return authorization.replace(/^Bearer\s+/i, "");
   },
-  transformer: ({ request, options }) => {
-    const { token, baseUrl, endpoint } = options;
+  transformer: async ({ request, options }) => {
+    const { token, baseUrl, endpoint, requestedModel, upstreamModel } = options;
+    const preparedRequest = await withUpstreamModel(request, requestedModel, upstreamModel);
     const upstreamRequest = new Request(
       appendEndpoint(baseUrl ?? defaultBaseUrl, endpoint ?? defaultEndpoint),
-      request,
+      preparedRequest,
     );
     return withHeaders(upstreamRequest, {
       authorization: `Bearer ${token}`,

@@ -15,6 +15,12 @@ import {
 } from "#/lib/database/provider.repository";
 import { discoverProviderModels, testProviderProtocol } from "#/lib/provider/provider-discovery";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
+import { protocolTypes } from "#/lib/protocol/protocol.registry";
+import {
+  getTestModel,
+  normalizeProviderModels,
+  type ProviderModels,
+} from "#/lib/provider/provider-models";
 import { multiplierSchema, pricingOverridesSchema } from "#/lib/pricing/pricing.types";
 import type {
   ProviderActionResult,
@@ -45,8 +51,9 @@ const getGatewayBaseUrl = async (): Promise<string> => {
 
 const providerSchema = z.object({
   name: nameSchema,
-  models: z.array(z.string().trim().min(1)).min(1, "Add at least one model."),
+  models: z.record(z.string(), z.object({ aliases: z.array(z.string()) })),
   testModel: z.string().trim().min(1, "Select a test model."),
+  testProtocol: z.enum(ProtocolType).nullable(),
   protocols: z.partialRecord(
     z.enum(ProtocolType),
     z.object({
@@ -59,28 +66,44 @@ const providerSchema = z.object({
   providerToken: z.string(),
   enabled: z.boolean(),
   costMultiplier: multiplierSchema,
-  pricingOverrides: pricingOverridesSchema,
+  pricingOverrides: pricingOverridesSchema.nullable(),
 });
 
 const parsePricingOverrides = (value: string): unknown => {
+  if (!value.trim()) return null;
   try {
-    return JSON.parse(value);
+    const parsed: unknown = JSON.parse(value);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      Object.keys(parsed).length === 0
+    ) {
+      return null;
+    }
+    return parsed;
   } catch {
     throw new Error("Pricing overrides must be valid JSON.");
   }
 };
 
 const normalizeInput = (input: ProviderFormInput) => {
-  const models = [...new Set(input.models.map((model) => model.trim()).filter(Boolean))].sort(
-    (left, right) => left.localeCompare(right),
-  );
+  const models = normalizeProviderModels(input.models as ProviderModels);
   const requestedTestModel = input.testModel.trim();
+  if (!Object.keys(models).length) throw new Error("Add at least one model.");
+  const testProtocol =
+    (input.testProtocol && input.protocols[input.testProtocol]?.enabled
+      ? input.testProtocol
+      : undefined) ??
+    protocolTypes.find((protocol) => input.protocols[protocol]?.enabled) ??
+    null;
 
   return {
     ...input,
     name: input.name.trim(),
     models,
-    testModel: models.includes(requestedTestModel) ? requestedTestModel : (models[0] ?? ""),
+    testModel: getTestModel(models, requestedTestModel) ?? "",
+    testProtocol,
     protocols: Object.fromEntries(
       Object.entries(input.protocols).map(([protocol, config]) => [
         protocol,
@@ -105,6 +128,15 @@ const errorResult = (error: unknown): Extract<ProviderActionResult, { ok: false 
   }
 
   if (error instanceof Error && error.message === "Pricing overrides must be valid JSON.") {
+    return { ok: false, error: error.message };
+  }
+
+  if (
+    error instanceof Error &&
+    (error.message === "Add at least one model." ||
+      error.message.includes("Model name") ||
+      error.message.includes("Model aliases"))
+  ) {
     return { ok: false, error: error.message };
   }
 
@@ -177,20 +209,28 @@ export const discoverProviderModelsAction = async (
   }
 };
 
-export const testProviderProtocolAction = async (
+export const testProviderAction = async (
   providerId: string,
-  protocol: ProtocolType,
+  overrides: { model?: string; protocol?: ProtocolType } = {},
 ): Promise<ProviderTestResult> => {
   try {
     const id = providerIdSchema.parse(providerId);
-    const protocolType = z.enum(ProtocolType).parse(protocol);
     const configuredProvider = await getProvider(id);
     if (!configuredProvider) return { ok: false, error: "Provider not found." };
+    const protocolType = z
+      .enum(ProtocolType)
+      .parse(overrides.protocol ?? configuredProvider.testProtocol);
+    const model = overrides.model?.trim() || configuredProvider.testModel || undefined;
 
-    const result = await testProviderProtocol(configuredProvider, protocolType, {
-      baseUrl: await getGatewayBaseUrl(),
-      token: getConfiguredGatewayToken(),
-    });
+    const result = await testProviderProtocol(
+      configuredProvider,
+      protocolType,
+      {
+        baseUrl: await getGatewayBaseUrl(),
+        token: getConfiguredGatewayToken(),
+      },
+      model,
+    );
     return { ok: true, ...result };
   } catch (error) {
     if (error instanceof Error) return { ok: false, error: error.message };

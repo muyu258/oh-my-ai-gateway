@@ -10,8 +10,12 @@ const provider: Provider = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   order: 1,
-  models: ["first-model", "second-model"],
+  models: {
+    "first-model": { aliases: [] },
+    "second-model": { aliases: ["second-alias"] },
+  },
   testModel: "second-model",
+  testProtocol: ProtocolType.OpenaiCompatible,
   protocols: {
     [ProtocolType.OpenaiCompatible]: { endpoint: "/custom/chat", enabled: true },
     [ProtocolType.OpenaiResponse]: { endpoint: "", enabled: true },
@@ -131,6 +135,8 @@ describe("testProviderProtocol", () => {
       const result = await testProviderProtocol(provider, connection.protocol, gateway);
 
       expect(result.model).toBe("second-model");
+      expect(result.upstreamModel).toBe("second-model");
+      expect(result.protocol).toBe(connection.protocol);
       expect(upstreamRequest?.url).toBe(connection.url);
       expect(upstreamRequest?.headers.get(connection.credential[0])).toBe(connection.credential[1]);
       expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
@@ -150,5 +156,23 @@ describe("testProviderProtocol", () => {
     );
 
     expect(result.model).toBe("first-model");
+  });
+
+  test("tests an explicit alias while reporting its upstream model", async () => {
+    let upstreamRequest: Request | undefined;
+    globalThis.fetch = ((input, init) => {
+      upstreamRequest = new Request(input, init);
+      return Promise.resolve(Response.json({ ok: true }));
+    }) as typeof fetch;
+
+    const result = await testProviderProtocol(
+      provider,
+      ProtocolType.OpenaiCompatible,
+      gateway,
+      "second-alias",
+    );
+
+    expect(result).toMatchObject({ model: "second-alias", upstreamModel: "second-model" });
+    expect((await upstreamRequest?.json())?.model).toBe("second-alias");
   });
 });

@@ -2,11 +2,19 @@ import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/p
 import { protocolOptions } from "#/lib/protocol/protocol.registry";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { ProviderFormInput } from "../provider-form.types";
+import {
+  addProviderModel,
+  getPublicModels,
+  getTestModel,
+  normalizeProviderModels,
+  type ProviderModels,
+} from "#/lib/provider/provider-models";
 
 export const emptyProviderForm: ProviderFormInput = {
   name: "",
-  models: [],
+  models: {},
   testModel: "",
+  testProtocol: ProtocolType.OpenaiCompatible,
   protocols: {
     [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true },
   },
@@ -14,7 +22,7 @@ export const emptyProviderForm: ProviderFormInput = {
   baseUrl: "",
   providerToken: "",
   costMultiplier: "1",
-  pricingOverrides: "{}",
+  pricingOverrides: "",
   enabled: true,
 };
 
@@ -23,13 +31,16 @@ export const createProviderForm = (provider?: ProviderSummary): ProviderFormInpu
     ? {
         name: provider.name,
         models: provider.models,
-        testModel: provider.testModel ?? provider.models[0] ?? "",
+        testModel: getTestModel(provider.models, provider.testModel) ?? "",
+        testProtocol: provider.testProtocol,
         protocols: provider.protocols,
         websiteUrl: provider.websiteUrl ?? "",
         baseUrl: provider.baseUrl ?? "",
         providerToken: "",
         costMultiplier: provider.costMultiplier,
-        pricingOverrides: JSON.stringify(provider.pricingOverrides, null, 2),
+        pricingOverrides: provider.pricingOverrides
+          ? JSON.stringify(provider.pricingOverrides, null, 2)
+          : "",
         enabled: provider.enabled,
       }
     : emptyProviderForm;
@@ -37,8 +48,8 @@ export const createProviderForm = (provider?: ProviderSummary): ProviderFormInpu
 export const sortModels = (models: string[]): string[] =>
   [...models].sort((left, right) => left.localeCompare(right));
 
-export const mergeModels = (current: string[], selected: string[]): string[] =>
-  sortModels([...new Set([...current, ...selected])]);
+export const mergeModels = (current: ProviderModels, selected: string[]): ProviderModels =>
+  selected.reduce(addProviderModel, current);
 
 export type DiscoveredModelState = "existing" | "selected" | "available";
 
@@ -78,13 +89,13 @@ export const moveProviderPriorities = (
 
 export const toProviderFormInput = (
   form: ProviderFormInput,
-  models: string[],
+  models: ProviderModels,
 ): ProviderFormInput => {
-  const sortedModels = sortModels(models);
+  const normalizedModels = normalizeProviderModels(models);
   return {
     ...form,
-    models: sortedModels,
-    testModel: sortedModels.includes(form.testModel) ? form.testModel : (sortedModels[0] ?? ""),
+    models: normalizedModels,
+    testModel: getTestModel(normalizedModels, form.testModel) ?? "",
   };
 };
 
@@ -114,4 +125,8 @@ export const statisticsPeriodLabels: Record<ProviderStatisticsPeriod, string> = 
 };
 
 export const firstEnabledProtocol = (provider: ProviderSummary): ProtocolType | undefined =>
-  protocolOptions.find(({ value }) => provider.protocols[value]?.enabled)?.value;
+  (provider.testProtocol && provider.protocols[provider.testProtocol]?.enabled
+    ? provider.testProtocol
+    : undefined) ?? protocolOptions.find(({ value }) => provider.protocols[value]?.enabled)?.value;
+
+export const providerPublicModels = (models: ProviderModels): string[] => getPublicModels(models);

@@ -2,7 +2,13 @@ import { GatewayErrorCode } from "#/lib/errors/gateway-error";
 import { invariant } from "es-toolkit";
 import { ProtocolType } from "../../protocol.types";
 import { protocolRegistry } from "../../protocol.registry";
-import { appendEndpoint, collectModels, emptyUsage, withHeaders } from "../adapter.helpers";
+import {
+  appendEndpoint,
+  collectModels,
+  emptyUsage,
+  withHeaders,
+  withUpstreamModel,
+} from "../adapter.helpers";
 import type { ProtocolAdapter } from "../adapter.types";
 import { consumeJsonEventStream } from "./shared/response-parser.helpers";
 
@@ -42,11 +48,12 @@ export const anthropicAdapter: ProtocolAdapter = {
     invariant(token, new Error("Anthropic gateway token is required"));
     return token;
   },
-  transformer: ({ request, options }) => {
-    const { token, baseUrl, endpoint } = options;
+  transformer: async ({ request, options }) => {
+    const { token, baseUrl, endpoint, requestedModel, upstreamModel } = options;
+    const preparedRequest = await withUpstreamModel(request, requestedModel, upstreamModel);
     const upstreamRequest = new Request(
       appendEndpoint(baseUrl ?? defaultBaseUrl, endpoint ?? defaultEndpoint),
-      request,
+      preparedRequest,
     );
     return withHeaders(upstreamRequest, {
       "x-api-key": token,

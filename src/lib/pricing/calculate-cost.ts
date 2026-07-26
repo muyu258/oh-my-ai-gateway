@@ -1,5 +1,6 @@
 import type { ParsedUsage } from "#/lib/protocol/adapter/adapter.types";
 import type { Provider } from "#/lib/provider/provider.types";
+import type { PricingSource } from "#/lib/database/drizzle/schema";
 import { pricingCatalog } from "./catalog";
 import {
   multiplierSchema,
@@ -19,6 +20,7 @@ type CostResult = {
   costMicros: number | null;
   costStatus: Exclude<CostStatus, "error">;
   costSnapshot: CostSnapshot;
+  pricingSource: PricingSource;
 };
 
 const DECIMAL_SCALE = BigInt(1_000_000);
@@ -28,13 +30,21 @@ const decimalToScaledInteger = (value: string): bigint => {
   return BigInt(integer!) * DECIMAL_SCALE + BigInt(fraction.padEnd(6, "0"));
 };
 
-const resolveModelPricing = (model: string, provider: Provider): ModelPricing => {
-  const overrides = pricingOverridesSchema.parse(provider.pricingOverrides);
-  return (
-    overrides[model] ??
-    pricingCatalog.models[model] ??
-    pricingCatalog.models[pricingCatalog.fallbackModel]!
-  );
+const resolveModelPricing = (
+  model: string,
+  provider: Provider,
+): { pricing: ModelPricing; pricingSource: PricingSource } => {
+  const overrides = pricingOverridesSchema.parse(provider.pricingOverrides ?? {});
+  if (overrides[model]) {
+    return { pricing: overrides[model], pricingSource: "provider_override" };
+  }
+  if (pricingCatalog.models[model]) {
+    return { pricing: pricingCatalog.models[model], pricingSource: "global_catalog" };
+  }
+  return {
+    pricing: pricingCatalog.models[pricingCatalog.fallbackModel]!,
+    pricingSource: "global_fallback",
+  };
 };
 
 const selectRates = (pricing: ModelPricing, usage: ParsedUsage): Rates => {
@@ -60,7 +70,7 @@ export const calculateCost = (
   usage: ParsedUsage,
 ): CostResult => {
   const multiplier = multiplierSchema.parse(provider.costMultiplier);
-  const pricing = resolveModelPricing(model, provider);
+  const { pricing, pricingSource } = resolveModelPricing(model, provider);
   const rates = selectRates(pricing, usage);
   const components = {
     input: { tokens: usage.inputTokens, rate: rates.input },
@@ -97,5 +107,6 @@ export const calculateCost = (
       multiplier,
       rates,
     },
+    pricingSource,
   };
 };

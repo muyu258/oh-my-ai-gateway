@@ -11,7 +11,7 @@ import type { ProtocolType } from "#/lib/protocol/protocol.types";
 import {
   createProviderAction,
   discoverProviderModelsAction,
-  testProviderProtocolAction,
+  testProviderAction,
   updateProviderAction,
 } from "../provider.actions";
 import type { ProviderFormInput } from "../provider-form.types";
@@ -19,6 +19,7 @@ import { ModelDiscoveryDialog, type ModelDiscovery } from "./model-discovery-dia
 import { ProviderForm } from "./provider-form";
 import type { ProtocolAction } from "./protocol-binding-editor";
 import { createProviderForm, mergeModels, toProviderFormInput } from "./provider-view.helpers";
+import { getPublicModels, type ProviderModels } from "#/lib/provider/provider-models";
 
 export function ProviderDialog({
   provider,
@@ -30,8 +31,11 @@ export function ProviderDialog({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [models, setModels] = useState<string[]>(provider ? [...provider.models] : []);
+  const [models, setModels] = useState<ProviderModels>(
+    provider ? structuredClone(provider.models) : {},
+  );
   const [activeProtocolAction, setActiveProtocolAction] = useState<ProtocolAction | null>(null);
+  const [testingModel, setTestingModel] = useState<string | null>(null);
   const [modelDiscovery, setModelDiscovery] = useState<ModelDiscovery | null>(null);
   const [form, setForm] = useState<ProviderFormInput>(() => createProviderForm(provider));
   const [providerId, setProviderId] = useState(provider?.id ?? null);
@@ -56,7 +60,7 @@ export function ProviderDialog({
       const savedName = form.name.trim();
 
       if (type === "test") {
-        const result = await testProviderProtocolAction(providerId, protocol);
+        const result = await testProviderAction(providerId, { protocol });
         setActiveProtocolAction(null);
         if (result.ok) {
           toast.success("Connection successful", {
@@ -88,10 +92,42 @@ export function ProviderDialog({
     const mergedModels = mergeModels(models, modelDiscovery.selected);
     setError("");
     setModels(mergedModels);
-    if (!form.testModel && mergedModels[0]) {
-      setForm((current) => ({ ...current, testModel: mergedModels[0] ?? "" }));
+    const firstModel = Object.keys(mergedModels)[0];
+    if (!form.testModel && firstModel) {
+      setForm((current) => ({ ...current, testModel: firstModel }));
     }
     setModelDiscovery(null);
+  };
+
+  const testModel = (model: string) => {
+    if (!providerId || !form.testProtocol) return;
+    setError("");
+    setTestingModel(model);
+    startTransition(async () => {
+      const saveResult = await updateProviderAction(providerId, formInput());
+      if (!saveResult.ok) {
+        setError(saveResult.error);
+        setTestingModel(null);
+        return;
+      }
+      setForm((current) => ({ ...current, providerToken: "" }));
+      const result = await testProviderAction(providerId, {
+        model,
+        protocol: form.testProtocol ?? undefined,
+      });
+      setTestingModel(null);
+      if (result.ok) {
+        const resolved =
+          result.model === result.upstreamModel
+            ? result.model
+            : `${result.model} → ${result.upstreamModel}`;
+        toast.success("Model test successful", {
+          description: `${resolved} responded in ${result.latencyMs} ms.`,
+        });
+      } else {
+        toast.error("Model test failed", { description: result.error });
+      }
+    });
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -138,6 +174,8 @@ export function ProviderDialog({
           setForm={setForm}
           setModels={setModels}
           onProtocolAction={runProtocolAction}
+          onModelTest={testModel}
+          testingModel={testingModel}
           onClose={onClose}
           onSubmit={submit}
         />
@@ -145,7 +183,7 @@ export function ProviderDialog({
 
       {modelDiscovery ? (
         <ModelDiscoveryDialog
-          currentModels={models}
+          currentModels={getPublicModels(models)}
           discovery={modelDiscovery}
           pending={pending}
           onChange={(selected) => setModelDiscovery({ ...modelDiscovery, selected })}

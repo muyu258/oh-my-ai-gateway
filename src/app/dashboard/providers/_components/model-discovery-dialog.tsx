@@ -1,7 +1,5 @@
 "use client";
 
-import { Check, LockKeyhole } from "lucide-react";
-
 import { ProtocolIcon } from "#/components/icons/protocol";
 import { Modal } from "#/components/modal";
 import type { ProtocolType } from "#/lib/protocol/protocol.types";
@@ -90,7 +88,7 @@ export function ModelDiscoveryDialog({
               <ProviderModelTag
                 key={model}
                 tone={state === "existing" ? "muted" : selected ? "accent" : "neutral"}
-                width="fixed"
+                width="content"
                 disabled={state === "existing" || pending}
                 pressed={state === "existing" ? undefined : selected}
                 ariaLabel={`${selected ? "Deselect" : "Select"} ${model}`}
@@ -99,15 +97,6 @@ export function ModelDiscoveryDialog({
                     selected
                       ? discovery.selected.filter((selectedModel) => selectedModel !== model)
                       : sortModels([...discovery.selected, model]),
-                  )
-                }
-                leadingIcon={
-                  state === "existing" ? (
-                    <LockKeyhole className="size-3.5" aria-hidden="true" />
-                  ) : selected ? (
-                    <Check className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
-                  ) : (
-                    <span aria-hidden="true" />
                   )
                 }
               >

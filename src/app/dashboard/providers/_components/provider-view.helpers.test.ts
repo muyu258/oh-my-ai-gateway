@@ -11,8 +11,9 @@ const summary = (id: string, order: number): ProviderSummary => ({
   id,
   name: id,
   order,
-  models: [],
+  models: {},
   testModel: null,
+  testProtocol: null,
   protocols: {},
   websiteUrl: null,
   baseUrl: null,
@@ -96,6 +97,16 @@ describe("discovered model helpers", () => {
   });
 
   test("merges only the selected models into a sorted, deduplicated draft", () => {
-    expect(mergeModels(["zeta", "alpha"], ["beta", "alpha"])).toEqual(["alpha", "beta", "zeta"]);
+    expect(
+      mergeModels({ zeta: { aliases: [] }, alpha: { aliases: ["occupied"] } }, [
+        "beta",
+        "alpha",
+        "occupied",
+      ]),
+    ).toEqual({
+      alpha: { aliases: ["occupied"] },
+      beta: { aliases: [] },
+      zeta: { aliases: [] },
+    });
   });
 });

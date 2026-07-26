@@ -18,13 +18,14 @@ const createDatabase = (): Database => {
       \`order\` integer NOT NULL UNIQUE,
       models text NOT NULL,
       test_model text,
+      test_protocol text,
       protocols text NOT NULL,
       website_url text,
       base_url text,
       token text NOT NULL,
       enabled integer NOT NULL,
       cost_multiplier text NOT NULL,
-      pricing_overrides text NOT NULL,
+      pricing_overrides text,
       created_at integer NOT NULL,
       updated_at integer NOT NULL
     );
@@ -38,6 +39,7 @@ const providerValues = (name: string, id = crypto.randomUUID()) =>
     name,
     JSON.stringify([`${name.toLowerCase()}-model`]),
     `${name.toLowerCase()}-model`,
+    "openaiCompatible",
     JSON.stringify({ openaiCompatible: { endpoint: "", enabled: true } }),
     null,
     null,

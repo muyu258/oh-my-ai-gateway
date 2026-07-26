@@ -18,10 +18,10 @@ export const insertProviderWithNextOrder = (
   const created = sqlite
     .prepare(
       `INSERT INTO provider (
-        id, name, \`order\`, models, test_model, protocols, website_url, base_url, token,
+        id, name, \`order\`, models, test_model, test_protocol, protocols, website_url, base_url, token,
         enabled, cost_multiplier, pricing_overrides, created_at, updated_at
       )
-      SELECT ?, ?, coalesce(max(\`order\`), 0) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      SELECT ?, ?, coalesce(max(\`order\`), 0) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       FROM provider
       RETURNING id`,
     )

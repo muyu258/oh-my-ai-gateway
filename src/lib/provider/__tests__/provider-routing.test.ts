@@ -8,8 +8,9 @@ const provider = (id: string, order: number, enabled = true): Provider => ({
   id,
   name: id,
   order,
-  models: ["shared-model"],
+  models: { "shared-model": { aliases: ["shared-alias"] } },
   testModel: "shared-model",
+  testProtocol: ProtocolType.OpenaiCompatible,
   protocols: {
     [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true },
   },
@@ -27,21 +28,30 @@ describe("provider routing priority", () => {
   const providers = [provider("priority-1", 1), provider("priority-2", 2)];
 
   test("selects the first eligible provider from repository order", () => {
-    expect(selectProvider(providers, ProtocolType.OpenaiCompatible, "shared-model")?.id).toBe(
-      "priority-1",
-    );
+    expect(
+      selectProvider(providers, ProtocolType.OpenaiCompatible, "shared-model")?.provider.id,
+    ).toBe("priority-1");
   });
 
   test("keeps explicit provider selection and skips disabled providers", () => {
     expect(
-      selectProvider(providers, ProtocolType.OpenaiCompatible, "shared-model", "priority-2")?.id,
+      selectProvider(providers, ProtocolType.OpenaiCompatible, "shared-model", "priority-2")
+        ?.provider.id,
     ).toBe("priority-2");
     expect(
       selectProvider(
         [provider("disabled", 1, false), provider("enabled", 2)],
         ProtocolType.OpenaiCompatible,
         "shared-model",
-      )?.id,
+      )?.provider.id,
     ).toBe("enabled");
+  });
+
+  test("resolves aliases without changing provider priority", () => {
+    expect(selectProvider(providers, ProtocolType.OpenaiCompatible, "shared-alias")).toMatchObject({
+      provider: { id: "priority-1" },
+      requestedModel: "shared-alias",
+      upstreamModel: "shared-model",
+    });
   });
 });

@@ -27,7 +27,8 @@ const processUsageTracking = async (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
-  model: string,
+  requestedModel: string,
+  upstreamModel: string,
   timing: { startedAt: Date; timeToFirstByteMs: number },
 ): Promise<void> => {
   const id = crypto.randomUUID();
@@ -48,18 +49,24 @@ const processUsageTracking = async (
     error = parseError;
   }
 
-  let cost: Pick<NewUsage, "costMicros" | "costStatus" | "costSnapshot">;
+  let cost: Pick<NewUsage, "costMicros" | "costStatus" | "costSnapshot" | "pricingSource">;
   try {
-    cost = calculateCost(model, provider, usage);
+    cost = calculateCost(upstreamModel, provider, usage);
   } catch (costError) {
     console.error(`Failed to calculate usage cost for provider '${provider.name}'`, costError);
-    cost = { costMicros: null, costStatus: "error", costSnapshot: undefined };
+    cost = {
+      costMicros: null,
+      costStatus: "error",
+      costSnapshot: undefined,
+      pricingSource: null,
+    };
   }
 
   await saveUsage({
     id,
     providerId: provider.id,
-    model,
+    model: requestedModel,
+    upstreamModel,
     client: getClient(request),
     protocolType,
     status: response.status,
@@ -78,7 +85,8 @@ export const track = (
   response: Response,
   adapter: ProtocolAdapter,
   provider: Provider,
-  model: string,
+  requestedModel: string,
+  upstreamModel: string,
   timing: { startedAt: Date; timeToFirstByteMs: number },
 ): void => {
   const trackingPromise = processUsageTracking(
@@ -86,7 +94,8 @@ export const track = (
     response,
     adapter,
     provider,
-    model,
+    requestedModel,
+    upstreamModel,
     timing,
   ).catch((error) => {
     console.error(`Failed to track usage for provider '${provider.name}'`, error);

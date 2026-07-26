@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, LoaderCircle, PlugZap, Trash2, X } from "lucide-react";
+import { Braces, Check, Link2, LoaderCircle, PlugZap, Trash2, X } from "lucide-react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { FloatingInput } from "#/components/floating-input";
 import { FormSectionCard } from "#/components/form-section-card";
@@ -10,7 +10,37 @@ import type { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { ProviderFormInput } from "../provider-form.types";
 import { ProviderModelTag } from "./provider-model-tag";
 import { ProtocolBindingEditor, type ProtocolAction } from "./protocol-binding-editor";
-import { sortModels } from "./provider-view.helpers";
+import {
+  addProviderAlias,
+  addProviderModel,
+  getPublicModels,
+  getRealModels,
+  removeProviderModelName,
+  resolveProviderModel,
+  type ProviderModels,
+} from "#/lib/provider/provider-models";
+
+export const pricingOverridesTemplate = `{
+  "model-name": {
+    "rates": {
+      "input": "input-rate-per-million",
+      "output": "output-rate-per-million",
+      "cacheRead": "cache-read-rate-per-million",
+      "cacheWrite": "cache-write-rate-per-million"
+    },
+    "tiers": [
+      {
+        "inputTokensAbove": 200000,
+        "rates": {
+          "input": "tier-input-rate-per-million",
+          "output": "tier-output-rate-per-million",
+          "cacheRead": "tier-cache-read-rate-per-million",
+          "cacheWrite": "tier-cache-write-rate-per-million"
+        }
+      }
+    ]
+  }
+}`;
 
 export function ProviderForm({
   hasPersistedProvider,
@@ -22,28 +52,41 @@ export function ProviderForm({
   setForm,
   setModels,
   onProtocolAction,
+  onModelTest,
+  testingModel,
   onClose,
   onSubmit,
 }: {
   hasPersistedProvider: boolean;
   form: ProviderFormInput;
-  models: string[];
+  models: ProviderModels;
   pending: boolean;
   error: string;
   activeProtocolAction: ProtocolAction | null;
   setForm: Dispatch<SetStateAction<ProviderFormInput>>;
-  setModels: Dispatch<SetStateAction<string[]>>;
+  setModels: Dispatch<SetStateAction<ProviderModels>>;
   onProtocolAction: (protocol: ProtocolType, type: ProtocolAction["type"]) => void;
+  onModelTest: (model: string) => void;
+  testingModel: string | null;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [modelDraft, setModelDraft] = useState("");
+  const [aliasMode, setAliasMode] = useState(false);
+  const [aliasTarget, setAliasTarget] = useState<string | null>(null);
+  const pricingTextarea = useRef<HTMLTextAreaElement>(null);
+  const publicModels = getPublicModels(models);
 
   const addModel = () => {
     const model = modelDraft.trim();
-    if (model && !models.includes(model)) {
-      setModels((current) => sortModels([...current, model]));
-      if (!form.testModel) setForm((current) => ({ ...current, testModel: model }));
+    if (aliasMode) {
+      if (!model || !aliasTarget) return;
+      setModels((current) => addProviderAlias(current, aliasTarget, model));
+    } else if (model) {
+      setModels((current) => addProviderModel(current, model));
+      if (!form.testModel && !resolveProviderModel(models, model)) {
+        setForm((current) => ({ ...current, testModel: model }));
+      }
     }
     setModelDraft("");
   };
@@ -94,24 +137,45 @@ export function ProviderForm({
         <FormSectionCard
           title="Models"
           action={
-            <button
-              type="button"
-              disabled={!models.length || pending}
-              onClick={() => {
-                setModels([]);
-                setForm((current) => ({ ...current, testModel: "" }));
-              }}
-              aria-label="Clear all models"
-              title="Clear all models"
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Trash2 className="size-3.5" aria-hidden="true" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!publicModels.length || pending}
+                aria-pressed={aliasMode}
+                onClick={() => {
+                  setAliasMode((current) => !current);
+                  setAliasTarget(null);
+                  setModelDraft("");
+                }}
+                aria-label="Add model alias"
+                title={aliasMode ? "Exit alias mode" : "Add model alias"}
+                className={`flex size-8 shrink-0 items-center justify-center rounded-md transition disabled:cursor-not-allowed disabled:opacity-40 ${aliasMode ? "bg-[#e0f2fe] text-[#0369a1]" : "text-[#667085] hover:bg-[#f2f4f7]"}`}
+              >
+                <Link2 className="size-3.5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                disabled={!publicModels.length || pending}
+                onClick={() => {
+                  setModels({});
+                  setAliasTarget(null);
+                  setForm((current) => ({ ...current, testModel: "" }));
+                }}
+                aria-label="Clear all models"
+                title="Clear all models"
+                className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#667085] transition hover:bg-[#fef3f2] hover:text-[#d92d20] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 className="size-3.5" aria-hidden="true" />
+              </button>
+            </div>
           }
         >
           <div className="flex flex-wrap content-start items-start gap-2 py-1">
-            {models.map((model) => {
-              const selected = form.testModel === model;
+            {publicModels.map((model) => {
+              const resolved = resolveProviderModel(models, model)!;
+              const selected = aliasMode
+                ? aliasTarget === resolved.upstreamModel
+                : form.testModel === model;
               return (
                 <ProviderModelTag
                   key={model}
@@ -119,43 +183,59 @@ export function ProviderForm({
                   width="content"
                   disabled={pending}
                   pressed={selected}
-                  ariaLabel={`Use ${model} as test model`}
-                  title={selected ? "Selected test model" : "Use as test model"}
-                  onClick={() => setForm((current) => ({ ...current, testModel: model }))}
-                  trailingAction={
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => {
-                        const nextModels = models.filter((currentModel) => currentModel !== model);
-                        setModels(nextModels);
-                        if (form.testModel === model) {
-                          setForm((current) => ({ ...current, testModel: nextModels[0] ?? "" }));
-                        }
-                      }}
-                      aria-label={`Remove ${model}`}
-                      title="Remove model"
-                      className={`group/remove flex size-6 items-center justify-center rounded outline-none transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0284c7] disabled:cursor-not-allowed disabled:opacity-50 ${
-                        selected
-                          ? "text-[#0284c7] hover:bg-[#bae6fd] hover:text-[#075985]"
-                          : "text-[#98a2b3] opacity-100 hover:bg-[#e4e7ec] hover:text-[#475467] sm:opacity-0 sm:group-hover:opacity-100"
-                      }`}
-                    >
-                      {selected ? (
-                        <>
-                          <PlugZap
-                            className="size-3.5 group-hover/remove:hidden group-focus-visible/remove:hidden"
-                            aria-hidden="true"
-                          />
-                          <X
-                            className="hidden size-3.5 group-hover/remove:block group-focus-visible/remove:block"
-                            aria-hidden="true"
-                          />
-                        </>
-                      ) : (
-                        <X className="size-3.5" aria-hidden="true" />
-                      )}
-                    </button>
+                  ariaLabel={
+                    aliasMode
+                      ? `Select ${resolved.upstreamModel} as alias target`
+                      : `Use ${model} as default test model`
+                  }
+                  title={
+                    resolved.isAlias
+                      ? `Alias for ${resolved.upstreamModel}`
+                      : "Set default test model"
+                  }
+                  leadingIcon={
+                    resolved.isAlias ? <Link2 className="size-3.5" aria-hidden="true" /> : undefined
+                  }
+                  onClick={() => {
+                    if (aliasMode) setAliasTarget(resolved.upstreamModel);
+                    else setForm((current) => ({ ...current, testModel: model }));
+                  }}
+                  actions={
+                    <>
+                      <button
+                        type="button"
+                        disabled={pending || !hasPersistedProvider || !form.testProtocol}
+                        onClick={() => onModelTest(model)}
+                        aria-label={`Test ${model}`}
+                        title={hasPersistedProvider ? "Test model" : "Save provider first"}
+                        className="flex size-5 items-center justify-center rounded text-[#98a2b3] transition hover:bg-[#e4e7ec] hover:text-[#475467] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        {testingModel === model ? (
+                          <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <PlugZap className="size-3" aria-hidden="true" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => {
+                          const nextModels = removeProviderModelName(models, model);
+                          setModels(nextModels);
+                          if (!resolveProviderModel(nextModels, form.testModel)) {
+                            setForm((current) => ({
+                              ...current,
+                              testModel: getRealModels(nextModels)[0] ?? "",
+                            }));
+                          }
+                        }}
+                        aria-label={`Remove ${model}`}
+                        title="Remove model"
+                        className="flex size-5 items-center justify-center rounded text-[#98a2b3] transition hover:bg-[#fee4e2] hover:text-[#d92d20] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <X className="size-3" aria-hidden="true" />
+                      </button>
+                    </>
                   }
                 >
                   {model}
@@ -170,8 +250,8 @@ export function ProviderForm({
                 event.preventDefault();
                 addModel();
               }}
-              aria-label="Add model"
-              placeholder="Add model"
+              aria-label={aliasMode ? "Add alias" : "Add model"}
+              placeholder={aliasMode ? (aliasTarget ? "Add alias" : "Select target") : "Add model"}
               className="h-8 w-40 max-w-full shrink-0 rounded-md border-0 bg-white px-2.5 font-mono text-xs text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.08)] outline-none transition placeholder:text-[#98a2b3] focus:ring-2 focus:ring-[#7dd3fc]"
             />
           </div>
@@ -200,11 +280,28 @@ export function ProviderForm({
               inputClassName="font-mono"
             />
             <label className="grid gap-2 text-sm font-medium text-[#344054]">
-              Pricing overrides
+              <span className="flex items-center justify-between gap-2">
+                Pricing overrides
+                <button
+                  type="button"
+                  disabled={Boolean(form.pricingOverrides.trim()) || pending}
+                  onClick={() => {
+                    setForm({ ...form, pricingOverrides: pricingOverridesTemplate });
+                    requestAnimationFrame(() => pricingTextarea.current?.focus());
+                  }}
+                  aria-label="Insert pricing overrides template"
+                  title="Insert template"
+                  className="flex size-8 items-center justify-center rounded-md text-[#667085] transition hover:bg-[#f2f4f7] disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <Braces className="size-4" aria-hidden="true" />
+                </button>
+              </span>
               <textarea
+                ref={pricingTextarea}
                 value={form.pricingOverrides}
                 onChange={(event) => setForm({ ...form, pricingOverrides: event.target.value })}
                 spellCheck={false}
+                placeholder={pricingOverridesTemplate}
                 rows={10}
                 className="min-h-44 w-full resize-y rounded-md border border-[#d0d5dd] bg-white px-3 py-2.5 font-mono text-xs leading-5 text-[#344054] shadow-[0_1px_2px_rgba(15,23,42,0.05)] outline-none transition focus:border-[#7dd3fc] focus:ring-2 focus:ring-[#bae6fd]"
               />

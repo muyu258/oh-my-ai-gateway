@@ -4,6 +4,9 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { CostSnapshot, CostStatus } from "#/lib/pricing/calculate-cost";
 import type { PricingOverrides } from "#/lib/pricing/pricing.types";
+import type { ProviderModels } from "#/lib/provider/provider-models";
+
+export type PricingSource = "provider_override" | "global_catalog" | "global_fallback";
 
 export const provider = sqliteTable("provider", {
   id: text("id")
@@ -11,8 +14,9 @@ export const provider = sqliteTable("provider", {
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
   order: integer("order").notNull().unique(),
-  models: text("models", { mode: "json" }).$type<string[]>().notNull(),
+  models: text("models", { mode: "json" }).$type<ProviderModels>().notNull(),
   testModel: text("test_model"),
+  testProtocol: text("test_protocol").$type<ProtocolType>(),
   protocols: text("protocols", { mode: "json" })
     .$type<
       Partial<
@@ -31,10 +35,7 @@ export const provider = sqliteTable("provider", {
   token: text("token").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   costMultiplier: text("cost_multiplier").notNull().default("1"),
-  pricingOverrides: text("pricing_overrides", { mode: "json" })
-    .$type<PricingOverrides>()
-    .notNull()
-    .default({}),
+  pricingOverrides: text("pricing_overrides", { mode: "json" }).$type<PricingOverrides>(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -52,6 +53,8 @@ export const usage = sqliteTable("usage", {
     .$defaultFn(() => crypto.randomUUID()),
   providerId: text("provider_id").references(() => provider.id, { onDelete: "set null" }),
   model: text("model"),
+  upstreamModel: text("upstream_model"),
+  pricingSource: text("pricing_source").$type<PricingSource>(),
   client: text("client"),
   protocolType: text("protocol_type"),
   status: integer("status"),

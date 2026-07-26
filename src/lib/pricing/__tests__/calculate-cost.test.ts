@@ -10,8 +10,9 @@ const provider: Provider = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   order: 1,
-  models: [model],
+  models: { [model]: { aliases: ["alias-model"] } },
   testModel: model,
+  testProtocol: ProtocolType.OpenaiCompatible,
   protocols: { [ProtocolType.OpenaiCompatible]: { endpoint: "", enabled: true } },
   websiteUrl: null,
   baseUrl: null,
@@ -45,7 +46,25 @@ describe("calculateCost", () => {
     expect(calculateCost(model, { ...provider, costMultiplier: "2" }, usage(3))).toMatchObject({
       costMicros: 6,
       costStatus: "complete",
+      pricingSource: "provider_override",
       costSnapshot: { multiplier: "2", rates: { input: "1" } },
+    });
+  });
+
+  test("reports global exact and fallback pricing sources with nullable overrides", () => {
+    const withoutOverrides = { ...provider, pricingOverrides: null };
+    expect(calculateCost("gpt-5.6-sol", withoutOverrides, usage(1)).pricingSource).toBe(
+      "global_catalog",
+    );
+    expect(calculateCost("not-in-the-catalog", withoutOverrides, usage(1)).pricingSource).toBe(
+      "global_fallback",
+    );
+  });
+
+  test("prices an alias using its upstream real model", () => {
+    expect(calculateCost(model, provider, usage(3))).toMatchObject({
+      costMicros: 3,
+      pricingSource: "provider_override",
     });
   });
 

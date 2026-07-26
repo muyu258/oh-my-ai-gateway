@@ -6,7 +6,8 @@ type TransformerParams = {
   request: Request;
   options: {
     token: string;
-    model: string | null;
+    requestedModel: string;
+    upstreamModel: string;
     baseUrl: string | null;
     endpoint: string | null;
   };
@@ -34,7 +35,7 @@ export interface ProtocolAdapter {
   /** Reads the gateway token from the protocol-specific authentication header. */
   getToken: (request: Request) => string;
   /** Replaces the upstream URL and credentials while preserving the protocol payload. */
-  transformer: (params: TransformerParams) => Request;
+  transformer: (params: TransformerParams) => Promise<Request>;
 
   /* ================================================================================ */
 

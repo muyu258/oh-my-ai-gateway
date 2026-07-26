@@ -8,9 +8,10 @@ import { toast } from "sonner";
 import { ClearFiltersButton } from "#/app/dashboard/_components/clear-filters-button";
 import { DashboardPageHeader } from "#/app/dashboard/_components/dashboard-page-header";
 import type { ProviderStatisticsPeriod, ProviderSummary } from "#/lib/database/provider.repository";
+import { getPublicModels } from "#/lib/provider/provider-models";
 import {
   moveProviderOrderAction,
-  testProviderProtocolAction,
+  testProviderAction,
   toggleProviderAction,
 } from "../provider.actions";
 import { DeleteProviderDialog } from "./delete-provider-dialog";
@@ -48,7 +49,12 @@ export function ProvidersView({
     const normalizedQuery = (searchParams.get("query") ?? "").trim().toLowerCase();
     if (!normalizedQuery) return orderedProviders;
     return orderedProviders.filter((provider) =>
-      [provider.name, provider.websiteUrl ?? "", provider.baseUrl ?? "", ...provider.models]
+      [
+        provider.name,
+        provider.websiteUrl ?? "",
+        provider.baseUrl ?? "",
+        ...getPublicModels(provider.models),
+      ]
         .join(" ")
         .toLowerCase()
         .includes(normalizedQuery),
@@ -96,11 +102,11 @@ export function ProvidersView({
 
     setTestingProvider(provider.id);
     startTransition(async () => {
-      const result = await testProviderProtocolAction(provider.id, protocol);
+      const result = await testProviderAction(provider.id);
       setTestingProvider(null);
       if (result.ok) {
         toast.success("Connection successful", {
-          description: `${provider.name} responded with ${result.model} in ${result.latencyMs} ms.`,
+          description: `${provider.name} responded with ${result.model} via ${result.protocol} in ${result.latencyMs} ms.`,
         });
       } else {
         toast.error("Connection failed", { description: result.error });

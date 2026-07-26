@@ -4,6 +4,7 @@ import { adapters } from "../protocol/adapter";
 import { appendEndpoint } from "../protocol/adapter/adapter.helpers";
 import { ProtocolType } from "../protocol/protocol.types";
 import type { Provider } from "./provider.types";
+import { getRealModels, resolveProviderModel } from "./provider-models";
 
 const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string().min(1) })),
@@ -52,12 +53,21 @@ export const testProviderProtocol = async (
   provider: Provider,
   protocol: ProtocolType,
   gateway: { baseUrl: string; token: string },
-): Promise<{ latencyMs: number; model: string }> => {
+  requestedModel?: string,
+): Promise<{
+  latencyMs: number;
+  model: string;
+  upstreamModel: string;
+  protocol: ProtocolType;
+}> => {
   if (!provider.protocols[protocol]?.enabled)
     throw new Error("Enable this protocol before testing it.");
 
-  const model = provider.testModel?.trim() || provider.models.at(0)?.trim();
+  const model =
+    requestedModel?.trim() || provider.testModel?.trim() || getRealModels(provider.models)[0];
   if (!model) throw new Error("Add at least one model before testing this protocol.");
+  const resolved = resolveProviderModel(provider.models, model);
+  if (!resolved) throw new Error("Select a model exposed by this provider.");
 
   const adapter = adapters[protocol];
   const headers = discoveryHeaders({ ...provider, token: gateway.token }, protocol);
@@ -80,6 +90,8 @@ export const testProviderProtocol = async (
   return {
     latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
     model,
+    upstreamModel: resolved.upstreamModel,
+    protocol,
   };
 };
 
