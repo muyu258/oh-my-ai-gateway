@@ -25,7 +25,7 @@ Shared-token authentication
   | reads model and protocol identity
   v
 Provider repository cache
-  | enabled + protocol + exact model + optional x-provider-name
+  | enabled + protocol + exact model + optional x-provider-id
   v
 Protocol adapter -> upstream fetch
   | native response returned immediately
@@ -64,7 +64,7 @@ The main responsibilities are:
 be present. A Bearer token produces an OpenAI-compatible model list using enabled providers that
 support either OpenAI adapter. An `x-api-key` produces an Anthropic-shaped list using enabled
 Anthropic providers. Models are deduplicated and sorted. This endpoint does not apply
-`x-provider-name` or filter by an individual requested model.
+`x-provider-id` or filter by an individual requested model.
 
 ### 3.1 Native Forwarding
 
@@ -76,6 +76,7 @@ Before the upstream request, the adapter removes these inbound headers:
 
 - `authorization`
 - `x-api-key`
+- `x-provider-id`
 - `x-provider-name`
 - `connection`
 - `host`
@@ -106,7 +107,7 @@ For a generation request, routing proceeds as follows:
 3. The provider repository returns its cached rows, loaded from SQLite in ascending provider-name
    order.
 4. The handler filters for provider enabled, exact protocol enabled, and exact model membership.
-5. If `x-provider-name` is supplied, it selects that exact name among the filtered candidates.
+5. If `x-provider-id` is supplied, it selects that exact UUID among the filtered candidates.
 6. Otherwise it selects the first filtered candidate.
 7. The provider's non-empty protocol endpoint is used, or the adapter default otherwise.
 
@@ -123,11 +124,11 @@ The authenticated dashboard provides the current local control plane. Operators 
 - enable protocols independently and set each protocol's upstream endpoint;
 - configure a cost multiplier and model-specific pricing overrides;
 - discover models through an upstream `/v1/models` request;
-- send a non-streaming test request through a named gateway provider; and
+- send a non-streaming test request through a provider selected by UUID; and
 - view provider statistics over `30m`, `1h`, `6h`, `24h`, `7d`, `30d`, or all time.
 
 Model discovery uses the provider credential directly and expects a `{ data: [{ id }] }` response.
-Connection tests use the shared gateway token and `x-provider-name`, so they exercise routing and
+Connection tests use the shared gateway token and `x-provider-id`, so they exercise routing and
 forwarding as well as upstream access. Discovery has a 15-second timeout and connection tests have
 a 30-second timeout; ordinary gateway generation requests have no explicit application timeout.
 
@@ -151,23 +152,25 @@ The `provider` table stores:
 - provider cost multiplier and model-specific pricing overrides; and
 - creation and update timestamps.
 
-The provider name is the primary key. Provider records are also cached in process memory; dashboard
-mutations refresh that cache. This design assumes a local/single-process operating model and has no
-cross-process cache invalidation.
+The provider UUID is the primary key and the editable provider name remains unique. Provider
+records use Next.js Cache Components with the `providers` tag; dashboard Server Actions invalidate
+that tag after successful mutations. This design assumes a local/single-process operating model and
+has no shared cache handler or cross-process invalidation.
 
 ### 6.2 `usage`
 
 The `usage` table stores one row for each successfully initiated request that receives an upstream
 response and reaches tracking. It contains:
 
-- generated ID, provider name, requested model, client user-agent, and protocol type;
+- generated ID, nullable provider UUID, requested model, client user-agent, and protocol type;
 - upstream HTTP status, stream flag, parsed upstream or observer error;
 - input, output, cache-creation, and cache-read token components;
 - integer estimated cost in microdollars, cost completeness status, and a rate snapshot; and
 - start time, time to first byte, and end time.
 
-The schema does not enforce a foreign key from usage to provider. Deleting or renaming a provider
-does not erase the historical provider name recorded on usage.
+Usage references provider UUID with `ON DELETE SET NULL`. Queries join the current provider name, so
+renames appear immediately in historical detail while deletion preserves usage with no provider
+name. Stored cost snapshots are not recalculated.
 
 There are no separate gateway request, upstream attempt, normalized usage event, billing profile,
 charge, adjustment, or ledger tables.
@@ -238,7 +241,8 @@ The current trust boundary is suitable for a local gateway used by trusted calle
 - no retry, failover, health-based routing, or circuit breaker exists;
 - no documented production backup, restore, migration rollback, or disaster-recovery process
   exists; and
-- the in-memory provider cache is not coordinated across application processes.
+- the Next.js cache handler and provider-tag invalidation are not coordinated across application
+  processes.
 
 Do not expose the current application directly to untrusted traffic or use estimated provider cost
 as authoritative consumer billing. Production deployment requires the controls and data-model

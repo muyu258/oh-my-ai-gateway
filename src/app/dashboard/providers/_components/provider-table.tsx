@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  Copy,
   LoaderCircle,
   Pencil,
   PlugZap,
@@ -124,7 +125,7 @@ export function ProviderTable({
             const hasTokens = provider.inputTokens !== null || provider.outputTokens !== null;
 
             return (
-              <DataTableRow key={provider.name}>
+              <DataTableRow key={provider.id}>
                 <DataTableCell pinned="left">
                   <div className="flex items-center justify-center">
                     {provider.websiteUrl ? (
@@ -146,6 +147,16 @@ export function ProviderTable({
                       </p>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(provider.id)}
+                    className="mx-auto mt-1 flex max-w-40 items-center gap-1 font-mono text-[10px] text-[#98a2b3] transition hover:text-[#475467]"
+                    title={`Copy provider ID: ${provider.id}`}
+                    aria-label={`Copy provider ID for ${provider.name}`}
+                  >
+                    <span className="truncate">{provider.id}</span>
+                    <Copy className="size-3 shrink-0" aria-hidden="true" />
+                  </button>
                 </DataTableCell>
                 <DataTableCell>
                   <p
@@ -267,7 +278,7 @@ export function ProviderTable({
                       }
                       className="flex size-8 items-center justify-center rounded-lg text-[#667085] transition hover:bg-[#f2f4f7] hover:text-[#344054] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {testingProvider === provider.name ? (
+                      {testingProvider === provider.id ? (
                         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                       ) : (
                         <PlugZap className="size-4" aria-hidden="true" />

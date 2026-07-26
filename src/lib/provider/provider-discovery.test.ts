@@ -7,6 +7,7 @@ import type { Provider } from "./provider.types";
 const originalFetch = globalThis.fetch;
 
 const provider: Provider = {
+  id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   models: ["first-model", "second-model"],
   testModel: "second-model",
@@ -92,7 +93,8 @@ describe("testProviderProtocol", () => {
     expect(result.model).toBe("second-model");
     expect(upstreamRequest?.url).toBe("http://gateway.example/v1/chat/completions");
     expect(upstreamRequest?.headers.get("authorization")).toBe("Bearer gateway-secret");
-    expect(upstreamRequest?.headers.get("x-provider-name")).toBe("Test provider");
+    expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
+    expect(upstreamRequest?.headers.get("x-provider-name")).toBeNull();
     expect(upstreamRequest?.headers.get("user-agent")).toBe("gateway/test");
     expect(payload).toEqual({
       model: "second-model",
@@ -129,7 +131,7 @@ describe("testProviderProtocol", () => {
 
     expect(upstreamRequest?.url).toBe("http://gateway.example/v1/messages");
     expect(upstreamRequest?.headers.get("x-api-key")).toBe("gateway-secret");
-    expect(upstreamRequest?.headers.get("x-provider-name")).toBe("Test provider");
+    expect(upstreamRequest?.headers.get("x-provider-id")).toBe(provider.id);
     expect(await upstreamRequest?.json()).toEqual({
       model: "second-model",
       max_tokens: 1,

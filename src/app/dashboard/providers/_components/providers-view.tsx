@@ -42,7 +42,7 @@ export function ProvidersView({
   const toggle = (provider: ProviderSummary) => {
     setActionError("");
     startTransition(async () => {
-      const result = await toggleProviderAction(provider.name, !provider.enabled);
+      const result = await toggleProviderAction(provider.id, !provider.enabled);
       if (!result.ok) setActionError(result.error);
       else router.refresh();
     });
@@ -57,9 +57,9 @@ export function ProvidersView({
       return;
     }
 
-    setTestingProvider(provider.name);
+    setTestingProvider(provider.id);
     startTransition(async () => {
-      const result = await testProviderProtocolAction(provider.name, protocol);
+      const result = await testProviderProtocolAction(provider.id, protocol);
       setTestingProvider(null);
       if (result.ok) {
         toast.success("Connection successful", {

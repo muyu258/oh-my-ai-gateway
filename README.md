@@ -46,9 +46,10 @@ For generation requests, the gateway filters providers by all of the following:
 2. the matching protocol is enabled; and
 3. the requested `model` appears in the provider's configured model list.
 
-Providers are loaded in ascending name order. If `x-provider-name` is present, the matching
-provider is selected from the filtered candidates. Otherwise, the first candidate is used. If no
-candidate matches, the gateway returns a protocol-shaped route-not-found error.
+Providers are loaded in ascending name order. If `x-provider-id: <uuid>` is present, that exact
+provider is selected from the filtered candidates. Provider UUIDs can be copied from the Providers
+dashboard. Otherwise, the first candidate is used. If no candidate matches, the gateway returns a
+protocol-shaped route-not-found error. The former `x-provider-name` header is not supported.
 
 The configured protocol endpoint overrides the adapter's default endpoint when it is non-empty.
 The gateway does not translate protocols, replace model aliases, retry, fail over, or load balance.

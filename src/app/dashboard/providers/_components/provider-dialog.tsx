@@ -30,7 +30,6 @@ export function ProviderDialog({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [persistedName, setPersistedName] = useState(provider?.name ?? "");
   const [models, setModels] = useState<string[]>(provider ? [...provider.models] : []);
   const [activeProtocolAction, setActiveProtocolAction] = useState<ProtocolAction | null>(null);
   const [modelDiscovery, setModelDiscovery] = useState<ModelDiscovery | null>(null);
@@ -46,17 +45,16 @@ export function ProviderDialog({
 
     startTransition(async () => {
       // Discovery and connection tests read persisted credentials, so save the current form first.
-      const saveResult = await updateProviderAction(persistedName, formInput());
+      const saveResult = await updateProviderAction(provider.id, formInput());
       if (!saveResult.ok) {
         setError(saveResult.error);
         setActiveProtocolAction(null);
         return;
       }
       const savedName = form.name.trim();
-      setPersistedName(savedName);
 
       if (type === "test") {
-        const result = await testProviderProtocolAction(savedName, protocol);
+        const result = await testProviderProtocolAction(provider.id, protocol);
         setActiveProtocolAction(null);
         if (result.ok) {
           toast.success("Connection successful", {
@@ -68,7 +66,7 @@ export function ProviderDialog({
         return;
       }
 
-      const result = await discoverProviderModelsAction(savedName, protocol);
+      const result = await discoverProviderModelsAction(provider.id, protocol);
       setActiveProtocolAction(null);
       if (!result.ok) {
         setError(result.error);
@@ -90,12 +88,11 @@ export function ProviderDialog({
     setError("");
 
     startTransition(async () => {
-      const result = await updateProviderAction(persistedName, formInput(mergedModels));
+      const result = await updateProviderAction(provider.id, formInput(mergedModels));
       if (!result.ok) {
         setError(result.error);
         return;
       }
-      setPersistedName(form.name.trim());
       setModels(mergedModels);
       if (!form.testModel && mergedModels[0]) {
         setForm((current) => ({ ...current, testModel: mergedModels[0] ?? "" }));
@@ -112,7 +109,7 @@ export function ProviderDialog({
 
     startTransition(async () => {
       const result = provider
-        ? await updateProviderAction(persistedName, input)
+        ? await updateProviderAction(provider.id, input)
         : await createProviderAction(input);
       if (!result.ok) {
         setError(result.error);

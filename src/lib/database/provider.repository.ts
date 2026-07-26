@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import type { Provider } from "#/lib/provider/provider.types";
 import { db } from "./drizzle/client";
@@ -17,35 +18,13 @@ const getTestModel = (
   testModel: string | null | undefined,
 ): string | undefined => (testModel && models.includes(testModel) ? testModel : models[0]);
 
-export const providers: Provider[] = [];
-
-let providersInitialized = false;
-let providersRefresh: Promise<Provider[]> | undefined;
-
 const loadProviders = async (): Promise<Provider[]> => {
   return db.select().from(provider).orderBy(asc(provider.name));
 };
 
-export const refreshProviders = async (): Promise<Provider[]> => {
-  const previousRefresh = providersRefresh;
-  const currentRefresh = (async () => {
-    if (previousRefresh) await previousRefresh.catch(() => undefined);
-    const refreshedProviders = await loadProviders();
-    providers.splice(0, providers.length, ...refreshedProviders);
-    providersInitialized = true;
-    return providers;
-  })();
-
-  providersRefresh = currentRefresh;
-  try {
-    return await currentRefresh;
-  } finally {
-    if (providersRefresh === currentRefresh) providersRefresh = undefined;
-  }
-};
-
 export type ProviderSummary = Pick<
   ProviderRecord,
+  | "id"
   | "name"
   | "models"
   | "testModel"
@@ -67,13 +46,18 @@ export type ProviderSummary = Pick<
 
 export type CreateProviderInput = NewProviderRecord;
 
-export type UpdateProviderInput = Omit<NewProviderRecord, "createdAt" | "updatedAt" | "token"> & {
+export type UpdateProviderInput = Omit<
+  NewProviderRecord,
+  "id" | "createdAt" | "updatedAt" | "token"
+> & {
   token?: NewProviderRecord["token"];
 };
 
 export const getProviders = async (): Promise<Provider[]> => {
-  if (providersInitialized) return providers;
-  return providersRefresh ?? refreshProviders();
+  "use cache";
+  cacheTag("providers");
+  cacheLife("max");
+  return loadProviders();
 };
 
 export const getProviderSummaries = async (
@@ -84,10 +68,11 @@ export const getProviderSummaries = async (
     getProviders(),
     getProviderStatistics(statisticsPeriod),
   ]);
-  const statisticsByProvider = new Map(statistics.map((summary) => [summary.name, summary]));
+  const statisticsByProvider = new Map(statistics.map((summary) => [summary.providerId, summary]));
 
   return providerRecords.map((record) => {
     const {
+      id,
       name,
       models,
       testModel,
@@ -99,8 +84,9 @@ export const getProviderSummaries = async (
       pricingOverrides,
       updatedAt,
     } = record;
-    const providerStatistics = statisticsByProvider.get(name);
+    const providerStatistics = statisticsByProvider.get(id);
     return {
+      id,
       name,
       models,
       testModel,
@@ -121,8 +107,8 @@ export const getProviderSummaries = async (
   });
 };
 
-export const getProvider = async (name: string): Promise<Provider | undefined> => {
-  return (await getProviders()).find((provider) => provider.name === name);
+export const getProvider = async (id: string): Promise<Provider | undefined> => {
+  return (await getProviders()).find((provider) => provider.id === id);
 };
 
 export const createProvider = async (input: CreateProviderInput): Promise<void> => {
@@ -132,13 +118,9 @@ export const createProvider = async (input: CreateProviderInput): Promise<void> 
     models,
     testModel: getTestModel(models, input.testModel) ?? null,
   });
-  await refreshProviders();
 };
 
-export const updateProvider = async (
-  currentName: string,
-  input: UpdateProviderInput,
-): Promise<void> => {
+export const updateProvider = async (id: string, input: UpdateProviderInput): Promise<void> => {
   const models = sortModels(input.models);
   await db
     .update(provider)
@@ -148,16 +130,13 @@ export const updateProvider = async (
       testModel: getTestModel(models, input.testModel) ?? null,
       updatedAt: new Date(),
     })
-    .where(eq(provider.name, currentName));
-  await refreshProviders();
+    .where(eq(provider.id, id));
 };
 
-export const setProviderEnabled = async (name: string, enabled: boolean): Promise<void> => {
-  await db.update(provider).set({ enabled, updatedAt: new Date() }).where(eq(provider.name, name));
-  await refreshProviders();
+export const setProviderEnabled = async (id: string, enabled: boolean): Promise<void> => {
+  await db.update(provider).set({ enabled, updatedAt: new Date() }).where(eq(provider.id, id));
 };
 
-export const deleteProvider = async (name: string): Promise<void> => {
-  await db.delete(provider).where(eq(provider.name, name));
-  await refreshProviders();
+export const deleteProvider = async (id: string): Promise<void> => {
+  await db.delete(provider).where(eq(provider.id, id));
 };

@@ -33,6 +33,7 @@ const adapter: ProtocolAdapter = {
 };
 
 const provider: Provider = {
+  id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   models: ["test-model"],
   testModel: "test-model",
@@ -74,7 +75,7 @@ describe("tracker core: processUsageTracking", () => {
 
     expect(persistUsage).toHaveBeenCalledTimes(1);
     expect(persistUsage.mock.calls[0]?.[0]).toMatchObject({
-      name: "Test provider",
+      providerId: provider.id,
       model: "test-model",
       status: 200,
       isStream: false,

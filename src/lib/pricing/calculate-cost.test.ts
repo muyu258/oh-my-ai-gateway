@@ -6,6 +6,7 @@ import type { Provider } from "#/lib/provider/provider.types";
 import { calculateCost } from "./calculate-cost";
 
 const provider: Provider = {
+  id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   models: ["gpt-5.6-sol"],
   testModel: "gpt-5.6-sol",

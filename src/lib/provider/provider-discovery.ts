@@ -62,7 +62,7 @@ export const testProviderProtocol = async (
   const adapter = adapters[protocol];
   const headers = discoveryHeaders({ ...provider, token: gateway.token }, protocol);
   headers.set("content-type", "application/json");
-  headers.set("x-provider-name", provider.name);
+  headers.set("x-provider-id", provider.id);
   headers.set("user-agent", "gateway/test");
   const startedAt = performance.now();
   const response = await fetch(appendEndpoint(gateway.baseUrl, adapter.defaultEndpoint), {

@@ -27,6 +27,7 @@ const requestHeadersToRemove = [
   "host",
   "transfer-encoding",
   "x-api-key",
+  "x-provider-id",
   "x-provider-name",
 ];
 

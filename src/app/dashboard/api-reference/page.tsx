@@ -1,9 +1,14 @@
-import { getConfiguredGatewayToken } from "#/lib/auth/auth";
 import "@scalar/api-reference-react/style.css";
 
 import { ApiReferenceReact } from "@scalar/api-reference-react";
 
-const gatewayToken = getConfiguredGatewayToken();
+const providerIdParameter = {
+  name: "x-provider-id",
+  in: "header",
+  required: false,
+  description: "Route to the matching provider UUID. Omit to use the first eligible provider.",
+  schema: { type: "string", format: "uuid" },
+};
 
 const configuration = {
   content: {
@@ -15,6 +20,7 @@ const configuration = {
       "/v1/chat/completions": {
         post: {
           security: [{ openAiGatewayToken: [] }],
+          parameters: [providerIdParameter],
           requestBody: {
             required: true,
             content: {
@@ -32,6 +38,7 @@ const configuration = {
       "/v1/responses": {
         post: {
           security: [{ openAiGatewayToken: [] }],
+          parameters: [providerIdParameter],
           requestBody: {
             required: true,
             content: {
@@ -49,6 +56,7 @@ const configuration = {
       "/v1/messages": {
         post: {
           security: [{ anthropicGatewayToken: [] }],
+          parameters: [providerIdParameter],
           requestBody: {
             required: true,
             content: {
@@ -80,13 +88,6 @@ const configuration = {
           description: "Enter the gateway token in the x-api-key header.",
         },
       },
-    },
-  },
-  authentication: {
-    preferredSecurityScheme: "openAiGatewayToken",
-    securitySchemes: {
-      openAiGatewayToken: { value: `Bearer ${gatewayToken}` },
-      anthropicGatewayToken: { value: gatewayToken },
     },
   },
   theme: "default" as const,

@@ -11,7 +11,7 @@ describe("createProviderStatisticsRepository", () => {
     sqlite.exec(`
       CREATE TABLE usage (
         id text PRIMARY KEY NOT NULL,
-        name text,
+        provider_id text,
         model text,
         client text,
         protocol_type text,
@@ -37,7 +37,7 @@ describe("createProviderStatisticsRepository", () => {
     await database.insert(schema.usage).values([
       {
         id: "recent-1",
-        name: "Provider A",
+        providerId: "provider-a",
         startAt: new Date(now.getTime() - 5 * 60 * 1000),
         timeToFirstByteMs: 100,
         inputTokens: 100,
@@ -49,7 +49,7 @@ describe("createProviderStatisticsRepository", () => {
       },
       {
         id: "period-boundary",
-        name: "Provider A",
+        providerId: "provider-a",
         startAt: new Date(now.getTime() - 30 * 60 * 1000),
         timeToFirstByteMs: 300,
         outputTokens: 0,
@@ -59,13 +59,13 @@ describe("createProviderStatisticsRepository", () => {
       },
       {
         id: "missing-ttfb",
-        name: "Provider A",
+        providerId: "provider-a",
         startAt: new Date(now.getTime() - 15 * 60 * 1000),
         costStatus: "unavailable",
       },
       {
         id: "outside-period",
-        name: "Provider A",
+        providerId: "provider-a",
         startAt: new Date(now.getTime() - 30 * 60 * 1000 - 1),
         timeToFirstByteMs: 900,
         inputTokens: 900,
@@ -76,7 +76,7 @@ describe("createProviderStatisticsRepository", () => {
       },
       {
         id: "provider-b",
-        name: "Provider B",
+        providerId: "provider-b",
         startAt: new Date(now.getTime() - 20 * 60 * 1000),
         timeToFirstByteMs: 500,
         inputTokens: 0,
@@ -88,7 +88,7 @@ describe("createProviderStatisticsRepository", () => {
       },
       {
         id: "provider-c-null-values",
-        name: "Provider C",
+        providerId: "provider-c",
         startAt: new Date(now.getTime() - 10 * 60 * 1000),
       },
       {
@@ -103,7 +103,7 @@ describe("createProviderStatisticsRepository", () => {
 
     expect(await repository.getProviderStatistics("30m", now)).toEqual([
       {
-        name: "Provider A",
+        providerId: "provider-a",
         averageResponseTimeMs: 200,
         inputTokens: 200,
         outputTokens: 50,
@@ -112,7 +112,7 @@ describe("createProviderStatisticsRepository", () => {
         costComplete: false,
       },
       {
-        name: "Provider B",
+        providerId: "provider-b",
         averageResponseTimeMs: 500,
         inputTokens: 0,
         outputTokens: 0,
@@ -121,7 +121,7 @@ describe("createProviderStatisticsRepository", () => {
         costComplete: true,
       },
       {
-        name: "Provider C",
+        providerId: "provider-c",
         averageResponseTimeMs: null,
         inputTokens: null,
         outputTokens: null,
@@ -133,7 +133,7 @@ describe("createProviderStatisticsRepository", () => {
 
     expect(await repository.getProviderStatistics("all", now)).toEqual([
       {
-        name: "Provider A",
+        providerId: "provider-a",
         averageResponseTimeMs: 1300 / 3,
         inputTokens: 1_200,
         outputTokens: 150,
@@ -142,7 +142,7 @@ describe("createProviderStatisticsRepository", () => {
         costComplete: false,
       },
       {
-        name: "Provider B",
+        providerId: "provider-b",
         averageResponseTimeMs: 500,
         inputTokens: 0,
         outputTokens: 0,
@@ -151,7 +151,7 @@ describe("createProviderStatisticsRepository", () => {
         costComplete: true,
       },
       {
-        name: "Provider C",
+        providerId: "provider-c",
         averageResponseTimeMs: null,
         inputTokens: null,
         outputTokens: null,

@@ -4,7 +4,9 @@ import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import * as schema from "./drizzle/schema";
 import type { UsageFilters, UsagePeriodFilter } from "#/lib/usage/filters";
 
-const { usage } = schema;
+const { provider, usage } = schema;
+
+export type UsageRecord = schema.Usage & { name: string | null };
 
 const periodInMilliseconds: Partial<Record<UsagePeriodFilter, number>> = {
   "24h": 24 * 60 * 60 * 1000,
@@ -47,12 +49,33 @@ export const createUsageRepository = <TRunResult>(
     filters: UsageFilters;
     page: number;
     pageSize: number;
-  }): Promise<{ records: schema.Usage[]; total: number }> => {
+  }): Promise<{ records: UsageRecord[]; total: number }> => {
     const where = createUsageWhere(filters);
     const [records, [{ total }]] = await Promise.all([
       database
-        .select()
+        .select({
+          id: usage.id,
+          providerId: usage.providerId,
+          name: provider.name,
+          model: usage.model,
+          client: usage.client,
+          protocolType: usage.protocolType,
+          status: usage.status,
+          isStream: usage.isStream,
+          error: usage.error,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          cacheCreationInputTokens: usage.cacheCreationInputTokens,
+          cacheReadInputTokens: usage.cacheReadInputTokens,
+          costMicros: usage.costMicros,
+          costStatus: usage.costStatus,
+          costSnapshot: usage.costSnapshot,
+          startAt: usage.startAt,
+          timeToFirstByteMs: usage.timeToFirstByteMs,
+          endAt: usage.endAt,
+        })
         .from(usage)
+        .leftJoin(provider, eq(usage.providerId, provider.id))
         .where(where)
         .orderBy(desc(usage.startAt))
         .limit(pageSize)

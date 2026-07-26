@@ -4,16 +4,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Sign in",
 };
 
-export default async function AuthPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
+async function AuthContent({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
   const cookieStore = await cookies();
 
@@ -75,5 +72,13 @@ export default async function AuthPage({
         </form>
       </section>
     </main>
+  );
+}
+
+export default function AuthPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  return (
+    <Suspense fallback={<main className="min-h-svh bg-white" />}>
+      <AuthContent searchParams={searchParams} />
+    </Suspense>
   );
 }

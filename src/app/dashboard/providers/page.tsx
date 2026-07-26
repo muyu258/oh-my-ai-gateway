@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import {
   getProviderSummaries,
@@ -9,8 +10,6 @@ import { ProvidersView } from "./_components/providers-view";
 export const metadata: Metadata = {
   title: "Providers | Oh My AI Gateway",
 };
-
-export const dynamic = "force-dynamic";
 
 const statisticsPeriods = new Set<ProviderStatisticsPeriod>([
   "30m",
@@ -24,11 +23,7 @@ const statisticsPeriods = new Set<ProviderStatisticsPeriod>([
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export default async function ProvidersPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
+async function ProvidersContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolvedSearchParams = await searchParams;
   const requestedPeriod = resolvedSearchParams.period ?? resolvedSearchParams.responseTimePeriod;
   const periodValue = Array.isArray(requestedPeriod) ? requestedPeriod[0] : requestedPeriod;
@@ -38,4 +33,12 @@ export default async function ProvidersPage({
   const providers = await getProviderSummaries(statisticsPeriod);
 
   return <ProvidersView providers={providers} statisticsPeriod={statisticsPeriod} />;
+}
+
+export default function ProvidersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  return (
+    <Suspense fallback={<div className="min-h-full flex-1 bg-white" />}>
+      <ProvidersContent searchParams={searchParams} />
+    </Suspense>
+  );
 }

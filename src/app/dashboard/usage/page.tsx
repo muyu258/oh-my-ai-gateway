@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { UsageRecordRow } from "#/app/dashboard/usage/_components/usage-record-row";
 import {
@@ -25,15 +26,13 @@ import { DataTablePanel } from "#/components/data-table-panel";
 import { ProtocolIcon } from "#/components/icons/protocol";
 import { TableFilter } from "#/components/table-filter";
 import { getUsages } from "#/lib/database/usage.repository";
-import type { Usage } from "#/lib/database/drizzle/schema";
+import type { UsageRecord } from "#/lib/database/usage.repository.core";
 import { isUsagePeriodFilter, isUsageStatusFilter, isUsageStreamFilter } from "#/lib/usage/filters";
 import { isProtocolType, protocolOptions } from "#/lib/protocol/protocol.registry";
 
 export const metadata: Metadata = {
   title: "Usage | Oh My AI Gateway",
 };
-
-export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -85,7 +84,7 @@ const getStatus = (status: number | null) => {
   };
 };
 
-const getCachedInputPercentage = (record: Usage): number | null => {
+const getCachedInputPercentage = (record: UsageRecord): number | null => {
   const inputTokens =
     (record.inputTokens ?? 0) +
     (record.cacheCreationInputTokens ?? 0) +
@@ -95,7 +94,7 @@ const getCachedInputPercentage = (record: Usage): number | null => {
   return Math.min(100, Math.round((cacheReadInputTokens / inputTokens) * 100));
 };
 
-const getTotalInputTokens = (record: Usage): number | null => {
+const getTotalInputTokens = (record: UsageRecord): number | null => {
   const components = [
     record.inputTokens,
     record.cacheCreationInputTokens,
@@ -106,7 +105,7 @@ const getTotalInputTokens = (record: Usage): number | null => {
     : null;
 };
 
-const getDuration = (record: Usage): number | null =>
+const getDuration = (record: UsageRecord): number | null =>
   record.endAt ? record.endAt.getTime() - record.startAt.getTime() : null;
 
 const pageHref = (params: URLSearchParams, page: number): string => {
@@ -130,7 +129,7 @@ const UsageTableColumns = () => (
   </colgroup>
 );
 
-export default async function UsagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+async function UsageContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const resolvedSearchParams = await searchParams;
   const model = firstValue(resolvedSearchParams.model)?.trim() ?? "";
   const client = firstValue(resolvedSearchParams.client)?.trim() ?? "";
@@ -451,5 +450,13 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
         </DataTableBody>
       </DataTable>
     </DataTablePanel>
+  );
+}
+
+export default function UsagePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  return (
+    <Suspense fallback={<div className="min-h-full flex-1 bg-white" />}>
+      <UsageContent searchParams={searchParams} />
+    </Suspense>
   );
 }

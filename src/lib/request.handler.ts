@@ -1,5 +1,11 @@
 import { pipe } from "es-toolkit/fp";
-import { forEnabled, forModel, forProtocol, selectProvider } from "./provider/provider.helpers";
+import {
+  forEnabled,
+  forModel,
+  forProtocol,
+  providerSelectionOptions,
+  selectProvider,
+} from "./provider/provider.helpers";
 import { getProviders } from "#/lib/database/provider.repository";
 import type { ProtocolAdapter } from "./protocol/adapter/adapter.types";
 import { normalizeGatewayError } from "./errors/gateway-error";
@@ -25,9 +31,7 @@ export const requestHandler = async ({
     const model = await getModel(request);
     const providers = await getProviders();
     const matchProviders = pipe(providers, forEnabled, forProtocol(protocolType), forModel(model));
-    const provider = selectProvider(matchProviders, {
-      name: request.headers.get("x-provider-name"),
-    });
+    const provider = selectProvider(matchProviders, providerSelectionOptions(request));
     const { baseUrl, token, protocols } = provider;
     const endpoint = protocols[protocolType]?.endpoint?.trim() || adapter.defaultEndpoint;
 

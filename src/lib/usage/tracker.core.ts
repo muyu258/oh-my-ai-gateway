@@ -60,7 +60,7 @@ export const processUsageTracking = async (
   const record = merge(
     {
       id,
-      name: provider.name,
+      providerId: provider.id,
       model,
       client: getClient(request),
       protocolType,

@@ -24,7 +24,7 @@ export const createProviderStatisticsRepository = <TRunResult>(
     now = new Date(),
   ): Promise<
     Array<{
-      name: string | null;
+      providerId: string;
       averageResponseTimeMs: number | null;
       inputTokens: number | null;
       outputTokens: number | null;
@@ -36,7 +36,7 @@ export const createProviderStatisticsRepository = <TRunResult>(
     const duration = periodInMilliseconds[period];
     const rows = await database
       .select({
-        name: usage.name,
+        providerId: usage.providerId,
         averageResponseTimeMs: avg(usage.timeToFirstByteMs).mapWith(Number),
         inputTokens: sum(
           sql<number>`case
@@ -60,12 +60,13 @@ export const createProviderStatisticsRepository = <TRunResult>(
       .where(
         and(
           duration ? gte(usage.startAt, new Date(now.getTime() - duration)) : undefined,
-          isNotNull(usage.name),
+          isNotNull(usage.providerId),
         ),
       )
-      .groupBy(usage.name);
+      .groupBy(usage.providerId);
 
-    return rows.map(({ incompleteCostCount, ...row }) => ({
+    return rows.map(({ incompleteCostCount, providerId, ...row }) => ({
+      providerId: providerId!,
       ...row,
       costComplete: incompleteCostCount === 0,
     }));

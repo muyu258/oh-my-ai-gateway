@@ -5,36 +5,11 @@ import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { CostSnapshot, CostStatus } from "#/lib/pricing/calculate-cost";
 import type { PricingOverrides } from "#/lib/pricing/pricing.types";
 
-export const usage = sqliteTable("usage", {
+export const provider = sqliteTable("provider", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text("name"),
-  model: text("model"),
-  client: text("client"),
-  protocolType: text("protocol_type"),
-  status: integer("status"),
-  isStream: integer("is_stream", { mode: "boolean" }).notNull().default(false),
-  error: text("error", { mode: "json" }).$type<unknown>(),
-  inputTokens: integer("input_tokens"),
-  outputTokens: integer("output_tokens"),
-  cacheCreationInputTokens: integer("cache_creation_input_tokens"),
-  cacheReadInputTokens: integer("cache_read_input_tokens"),
-  costMicros: integer("cost_micros"),
-  costStatus: text("cost_status").$type<CostStatus>(),
-  costSnapshot: text("cost_snapshot", { mode: "json" }).$type<CostSnapshot>(),
-  startAt: integer("start_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  timeToFirstByteMs: integer("time_to_first_byte_ms"),
-  endAt: integer("end_at", { mode: "timestamp_ms" }),
-});
-
-export type Usage = typeof usage.$inferSelect;
-export type NewUsage = typeof usage.$inferInsert;
-
-export const provider = sqliteTable("provider", {
-  name: text("name").primaryKey(),
+  name: text("name").notNull().unique(),
   models: text("models", { mode: "json" }).$type<string[]>().notNull(),
   testModel: text("test_model"),
   protocols: text("protocols", { mode: "json" })
@@ -69,3 +44,31 @@ export const provider = sqliteTable("provider", {
 
 export type ProviderRecord = typeof provider.$inferSelect;
 export type NewProviderRecord = typeof provider.$inferInsert;
+
+export const usage = sqliteTable("usage", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  providerId: text("provider_id").references(() => provider.id, { onDelete: "set null" }),
+  model: text("model"),
+  client: text("client"),
+  protocolType: text("protocol_type"),
+  status: integer("status"),
+  isStream: integer("is_stream", { mode: "boolean" }).notNull().default(false),
+  error: text("error", { mode: "json" }).$type<unknown>(),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  cacheCreationInputTokens: integer("cache_creation_input_tokens"),
+  cacheReadInputTokens: integer("cache_read_input_tokens"),
+  costMicros: integer("cost_micros"),
+  costStatus: text("cost_status").$type<CostStatus>(),
+  costSnapshot: text("cost_snapshot", { mode: "json" }).$type<CostSnapshot>(),
+  startAt: integer("start_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  timeToFirstByteMs: integer("time_to_first_byte_ms"),
+  endAt: integer("end_at", { mode: "timestamp_ms" }),
+});
+
+export type Usage = typeof usage.$inferSelect;
+export type NewUsage = typeof usage.$inferInsert;

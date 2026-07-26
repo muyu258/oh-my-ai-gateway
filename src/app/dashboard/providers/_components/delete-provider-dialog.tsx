@@ -21,7 +21,7 @@ export function DeleteProviderDialog({
 
   const remove = () => {
     startTransition(async () => {
-      const result = await deleteProviderAction(provider.name);
+      const result = await deleteProviderAction(provider.id);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -9,9 +9,14 @@ describe("createUsageRepository", () => {
   test("queries usage metadata without requiring a content table", async () => {
     const sqlite = new Database(":memory:");
     sqlite.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE provider (
+        id text PRIMARY KEY NOT NULL,
+        name text NOT NULL UNIQUE
+      );
       CREATE TABLE usage (
         id text PRIMARY KEY NOT NULL,
-        name text,
+        provider_id text REFERENCES provider(id) ON DELETE SET NULL,
         model text,
         client text,
         protocol_type text,
@@ -29,12 +34,13 @@ describe("createUsageRepository", () => {
         time_to_first_byte_ms integer,
         end_at integer
       );
+      INSERT INTO provider (id, name) VALUES ('provider-1', 'Test provider');
     `);
     const repository = createUsageRepository(drizzle(sqlite, { schema }));
 
     await repository.saveUsage({
       id: "usage-1",
-      name: "Test provider",
+      providerId: "provider-1",
       model: "test-model",
       client: "repository-test",
       protocolType: "anthropic",
@@ -61,9 +67,15 @@ describe("createUsageRepository", () => {
 
     expect(result.total).toBe(1);
     expect(result.records).toHaveLength(1);
-    expect(result.records[0]).toMatchObject({ id: "usage-1", model: "test-model" });
+    expect(result.records[0]).toMatchObject({
+      id: "usage-1",
+      providerId: "provider-1",
+      name: "Test provider",
+      model: "test-model",
+    });
     expect(Object.keys(result.records[0] ?? {})).toEqual([
       "id",
+      "providerId",
       "name",
       "model",
       "client",
@@ -82,6 +94,36 @@ describe("createUsageRepository", () => {
       "timeToFirstByteMs",
       "endAt",
     ]);
+
+    sqlite.prepare("UPDATE provider SET name = 'Renamed provider' WHERE id = 'provider-1'").run();
+    const renamed = await repository.getUsages({
+      filters: {
+        model: "",
+        client: "",
+        protocolType: "",
+        stream: "all",
+        status: "all",
+        period: "all",
+      },
+      page: 1,
+      pageSize: 20,
+    });
+    expect(renamed.records[0]?.name).toBe("Renamed provider");
+
+    sqlite.prepare("DELETE FROM provider WHERE id = 'provider-1'").run();
+    const deleted = await repository.getUsages({
+      filters: {
+        model: "",
+        client: "",
+        protocolType: "",
+        stream: "all",
+        status: "all",
+        period: "all",
+      },
+      page: 1,
+      pageSize: 20,
+    });
+    expect(deleted.records[0]).toMatchObject({ providerId: null, name: null });
     sqlite.close();
   });
 });

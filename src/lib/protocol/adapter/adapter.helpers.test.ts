@@ -13,6 +13,7 @@ describe("adapter helpers: withHeaders", () => {
         host: "gateway.example",
         "transfer-encoding": "chunked",
         "x-api-key": "gateway-token",
+        "x-provider-id": "00000000-0000-4000-8000-000000000001",
         "x-provider-name": "provider-a",
         "anthropic-version": "2023-06-01",
       },
@@ -31,6 +32,7 @@ describe("adapter helpers: withHeaders", () => {
       "host",
       "transfer-encoding",
       "x-api-key",
+      "x-provider-id",
       "x-provider-name",
     ]) {
       expect(upstreamRequest.headers.get(header)).toBeNull();

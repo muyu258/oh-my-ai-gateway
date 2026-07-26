@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
@@ -23,6 +23,12 @@ import type {
 } from "./provider-form.types";
 
 const nameSchema = z.string().trim().min(1, "Name is required.");
+const providerIdSchema = z.uuid("Invalid provider ID.");
+
+const invalidateProviders = (): void => {
+  updateTag("providers");
+  revalidatePath("/dashboard/providers");
+};
 
 const getGatewayBaseUrl = async (): Promise<string> => {
   const requestHeaders = await headers();
@@ -117,7 +123,7 @@ export const createProviderAction = async (
       websiteUrl: parsed.websiteUrl || null,
       baseUrl: parsed.baseUrl || null,
     });
-    revalidatePath("/dashboard/providers");
+    invalidateProviders();
     return { ok: true };
   } catch (error) {
     return errorResult(error);
@@ -125,13 +131,13 @@ export const createProviderAction = async (
 };
 
 export const updateProviderAction = async (
-  currentName: string,
+  providerId: string,
   input: ProviderFormInput,
 ): Promise<ProviderActionResult> => {
   try {
-    const existingName = nameSchema.parse(currentName);
+    const id = providerIdSchema.parse(providerId);
     const parsed = providerSchema.parse(normalizeInput(input));
-    await updateProvider(existingName, {
+    await updateProvider(id, {
       name: parsed.name,
       models: parsed.models,
       testModel: parsed.testModel,
@@ -143,7 +149,7 @@ export const updateProviderAction = async (
       costMultiplier: parsed.costMultiplier,
       pricingOverrides: parsed.pricingOverrides,
     });
-    revalidatePath("/dashboard/providers");
+    invalidateProviders();
     return { ok: true };
   } catch (error) {
     return errorResult(error);
@@ -151,13 +157,13 @@ export const updateProviderAction = async (
 };
 
 export const discoverProviderModelsAction = async (
-  name: string,
+  providerId: string,
   protocol: ProtocolType,
 ): Promise<ProviderConnectionResult> => {
   try {
-    const providerName = nameSchema.parse(name);
+    const id = providerIdSchema.parse(providerId);
     const protocolType = z.enum(ProtocolType).parse(protocol);
-    const configuredProvider = await getProvider(providerName);
+    const configuredProvider = await getProvider(id);
     if (!configuredProvider) return { ok: false, error: "Provider not found." };
 
     const result = await discoverProviderModels(configuredProvider, protocolType);
@@ -169,13 +175,13 @@ export const discoverProviderModelsAction = async (
 };
 
 export const testProviderProtocolAction = async (
-  name: string,
+  providerId: string,
   protocol: ProtocolType,
 ): Promise<ProviderTestResult> => {
   try {
-    const providerName = nameSchema.parse(name);
+    const id = providerIdSchema.parse(providerId);
     const protocolType = z.enum(ProtocolType).parse(protocol);
-    const configuredProvider = await getProvider(providerName);
+    const configuredProvider = await getProvider(id);
     if (!configuredProvider) return { ok: false, error: "Provider not found." };
 
     const result = await testProviderProtocol(configuredProvider, protocolType, {
@@ -190,22 +196,22 @@ export const testProviderProtocolAction = async (
 };
 
 export const toggleProviderAction = async (
-  name: string,
+  providerId: string,
   enabled: boolean,
 ): Promise<ProviderActionResult> => {
   try {
-    await setProviderEnabled(nameSchema.parse(name), enabled);
-    revalidatePath("/dashboard/providers");
+    await setProviderEnabled(providerIdSchema.parse(providerId), enabled);
+    invalidateProviders();
     return { ok: true };
   } catch (error) {
     return errorResult(error);
   }
 };
 
-export const deleteProviderAction = async (name: string): Promise<ProviderActionResult> => {
+export const deleteProviderAction = async (providerId: string): Promise<ProviderActionResult> => {
   try {
-    await deleteProvider(nameSchema.parse(name));
-    revalidatePath("/dashboard/providers");
+    await deleteProvider(providerIdSchema.parse(providerId));
+    invalidateProviders();
     return { ok: true };
   } catch (error) {
     return errorResult(error);
