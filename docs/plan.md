@@ -4,7 +4,7 @@
 
 This plan starts from the repository implementation present on **2026-07-26**. The gateway is no
 longer a scaffold: it already provides a usable local, shared-token, multi-protocol forwarding path,
-SQLite provider management, usage capture, provider cost estimation, and dashboards.
+PostgreSQL provider management, usage capture, provider cost estimation, and dashboards.
 
 [The architecture document](./architecture.md) describes only what exists. This plan preserves the
 larger consumer routing, authoritative metering, ledger, analytics, and production goals as future
@@ -40,7 +40,7 @@ Terminology is strict throughout this plan:
 ### Outcome
 
 A trusted local caller can use one shared token to send native requests through any of the three
-supported protocol operations to an enabled, model-matching SQLite provider and inspect resulting
+supported protocol operations to an enabled, model-matching PostgreSQL provider and inspect resulting
 usage in the dashboard.
 
 ### Current Evidence
@@ -48,7 +48,7 @@ usage in the dashboard.
 - Next.js Route Handlers expose Chat Completions, Responses, Messages, and model listing.
 - Built-in adapters preserve each native payload and support JSON and SSE usage parsing.
 - Protocol-specific gateway and provider authentication headers are applied.
-- SQLite migrations, provider CRUD, enablement, protocol configuration, model discovery, connection
+- PostgreSQL schema management, provider CRUD, enablement, protocol configuration, model discovery, connection
   testing, and usage views are present.
 - Provider selection filters enabled records by exact protocol and model, with an optional
   `x-provider-id` constraint.
@@ -64,10 +64,10 @@ are inputs to later phases, not hidden acceptance criteria for this phase.
 
 - [x] All three native generation endpoints authenticate and route without protocol conversion.
 - [x] `/v1/models` returns configured models in the inferred OpenAI or Anthropic shape.
-- [x] Provider configuration and usage survive application restarts in SQLite.
+- [x] Provider configuration and usage survive application restarts in PostgreSQL.
 - [x] Operators can configure, discover, test, enable, disable, and delete providers.
 - [x] The dashboard displays provider summaries and filterable usage records.
-- [x] Local database initialization is documented and reproducible from committed migrations.
+- [x] Local database initialization is documented and reproducible from the committed schema.
 
 ## 3. Phase 2: Data-Plane Correctness and Integration Coverage
 
@@ -158,7 +158,7 @@ lifecycle, normalized usage provenance, and an explainable provider cost outcome
 
 ### Current Evidence
 
-- Successful upstream starts that receive a response produce asynchronous SQLite usage rows.
+- Successful upstream starts that receive a response produce asynchronous PostgreSQL usage rows.
 - JSON and SSE parsers normalize input, output, cache-read, and cache-creation token components.
 - Missing usage is represented explicitly and yields `partial` or `unavailable` cost states.
 - Model overrides, catalog fallback pricing, provider multipliers, integer microdollar calculations,
@@ -275,7 +275,7 @@ capacity, observability, backup, and recovery guarantees.
 
 ### Current Evidence
 
-- SQLite WAL mode, schema migrations, strict TypeScript, linting, formatting checks, and unit tests
+- PostgreSQL schema management, strict TypeScript, linting, formatting checks, and unit tests
   provide an engineering baseline.
 - Model discovery and dashboard connection tests have explicit timeouts.
 - Current limitations are documented in the README and architecture.

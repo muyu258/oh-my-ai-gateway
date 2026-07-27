@@ -1,1 +1,0 @@
-ALTER TABLE `provider` ADD `test_model` text;

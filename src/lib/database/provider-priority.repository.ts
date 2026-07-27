@@ -1,59 +1,52 @@
-type SqliteBindValue = null | string | number | bigint | boolean | Uint8Array;
+import { asc, eq, sql } from "drizzle-orm";
 
-type SqliteStatement = {
-  all: (...values: SqliteBindValue[]) => unknown[];
-  get: (...values: SqliteBindValue[]) => unknown;
-  run: (...values: SqliteBindValue[]) => unknown;
-};
+import { db } from "./drizzle/client";
+import { provider, type NewProviderRecord } from "./drizzle/schema";
+import { reorderProviders, type ProviderOrderPlacement } from "./provider-order";
 
-export type SyncSqliteDatabase = {
-  prepare: (query: string) => SqliteStatement;
-  transaction: <Result>(operation: () => Result) => () => Result;
-};
+export type { ProviderOrderPlacement } from "./provider-order";
 
-export const insertProviderWithNextOrder = (
-  sqlite: SyncSqliteDatabase,
-  values: readonly SqliteBindValue[],
-): string => {
-  const created = sqlite
-    .prepare(
-      `INSERT INTO provider (
-        id, name, \`order\`, models, test_model, test_protocol, protocols, website_url, base_url, token,
-        enabled, cost_multiplier, pricing_overrides, created_at, updated_at
-      )
-      SELECT ?, ?, coalesce(max(\`order\`), 0) + 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-      FROM provider
-      RETURNING id`,
-    )
-    .get(...values) as { id: string } | undefined;
-  if (!created) throw new Error("Provider creation did not return an ID.");
-  return created.id;
-};
+const lockProviderOrdering = (
+  transaction: Parameters<typeof db.transaction>[0] extends (
+    transaction: infer Transaction,
+    ...args: never[]
+  ) => unknown
+    ? Transaction
+    : never,
+) => transaction.execute(sql`select pg_advisory_xact_lock(hashtext('gateway.provider.order'))`);
 
-export type ProviderOrderPlacement = "before" | "after";
+export const insertProviderWithNextOrder = async (
+  values: Omit<NewProviderRecord, "order">,
+): Promise<string> =>
+  db.transaction(async (transaction) => {
+    await lockProviderOrdering(transaction);
+    const [row] = await transaction
+      .select({ maximumOrder: sql<number>`coalesce(max(${provider.order}), 0)`.mapWith(Number) })
+      .from(provider);
+    const [created] = await transaction
+      .insert(provider)
+      .values({ ...values, order: (row?.maximumOrder ?? 0) + 1 })
+      .returning({ id: provider.id });
+    if (!created) throw new Error("Provider creation did not return an ID.");
+    return created.id;
+  });
 
-export const moveProviderOrderInDatabase = (
-  sqlite: SyncSqliteDatabase,
+export const moveProviderOrderInDatabase = async (
   sourceId: string,
   targetId: string,
   placement: ProviderOrderPlacement,
-): void => {
+): Promise<void> => {
   if (sourceId === targetId) throw new Error("Provider IDs must be different.");
 
-  sqlite.transaction(() => {
-    const records = sqlite
-      .prepare("SELECT id, `order` FROM provider ORDER BY `order` ASC")
-      .all() as Array<{ id: string; order: number }>;
-    const sourceIndex = records.findIndex(({ id }) => id === sourceId);
-    const targetIndex = records.findIndex(({ id }) => id === targetId);
-    if (sourceIndex < 0 || targetIndex < 0) throw new Error("Both providers must exist.");
-
-    const reordered = [...records];
-    const [source] = reordered.splice(sourceIndex, 1);
-    const targetIndexWithoutSource = reordered.findIndex(({ id }) => id === targetId);
-    const insertionIndex = targetIndexWithoutSource + (placement === "after" ? 1 : 0);
-    reordered.splice(insertionIndex, 0, source);
+  await db.transaction(async (transaction) => {
+    await lockProviderOrdering(transaction);
+    const records = await transaction
+      .select({ id: provider.id, order: provider.order })
+      .from(provider)
+      .orderBy(asc(provider.order));
+    const reordered = reorderProviders(records, sourceId, targetId, placement);
     const finalIndex = reordered.findIndex(({ id }) => id === sourceId);
+    const sourceIndex = records.findIndex(({ id }) => id === sourceId);
     if (finalIndex === sourceIndex) return;
 
     const rangeStart = Math.min(sourceIndex, finalIndex);
@@ -61,9 +54,18 @@ export const moveProviderOrderInDatabase = (
     const originalRange = records.slice(rangeStart, rangeEnd + 1);
     const reorderedRange = reordered.slice(rangeStart, rangeEnd + 1);
     const maximumOrder = records.at(-1)?.order ?? 0;
-    const update = sqlite.prepare("UPDATE provider SET `order` = ? WHERE id = ?");
 
-    originalRange.forEach(({ id }, index) => update.run(maximumOrder + index + 1, id));
-    reorderedRange.forEach(({ id }, index) => update.run(originalRange[index]!.order, id));
-  })();
+    for (const [index, record] of originalRange.entries()) {
+      await transaction
+        .update(provider)
+        .set({ order: maximumOrder + index + 1 })
+        .where(eq(provider.id, record.id));
+    }
+    for (const [index, record] of reorderedRange.entries()) {
+      await transaction
+        .update(provider)
+        .set({ order: originalRange[index]!.order })
+        .where(eq(provider.id, record.id));
+    }
+  });
 };

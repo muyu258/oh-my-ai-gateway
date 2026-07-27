@@ -1,1 +1,0 @@
-ALTER TABLE `provider` ADD `website_url` text;

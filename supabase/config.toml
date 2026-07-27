@@ -1,0 +1,7 @@
+project_id = "oh-my-ai-gateway"
+
+[db]
+major_version = 17
+
+[api]
+schemas = ["public"]

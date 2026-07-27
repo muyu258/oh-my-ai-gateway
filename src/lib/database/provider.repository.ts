@@ -5,7 +5,7 @@ import type { Provider } from "#/lib/provider/provider.types";
 import { getTestModel, normalizeProviderModels } from "#/lib/provider/provider-models";
 import { protocolTypes } from "#/lib/protocol/protocol.registry";
 import type { ProtocolType } from "#/lib/protocol/protocol.types";
-import { db, sqlite } from "./drizzle/client";
+import { db } from "./drizzle/client";
 import { provider, usage, type NewProviderRecord, type ProviderRecord } from "./drizzle/schema";
 import {
   insertProviderWithNextOrder,
@@ -170,22 +170,18 @@ export const createProvider = async (input: CreateProviderInput): Promise<string
   const models = normalizeProviderModels(input.models);
   const createdAt = input.createdAt instanceof Date ? input.createdAt : new Date();
   const updatedAt = input.updatedAt instanceof Date ? input.updatedAt : createdAt;
-  return insertProviderWithNextOrder(sqlite, [
-    input.id ?? crypto.randomUUID(),
-    input.name,
-    JSON.stringify(models),
-    getTestModel(models, input.testModel),
-    getTestProtocol(input.protocols, input.testProtocol),
-    JSON.stringify(input.protocols),
-    input.websiteUrl ?? null,
-    input.baseUrl ?? null,
-    input.token,
-    (input.enabled ?? true) ? 1 : 0,
-    input.costMultiplier ?? "1",
-    input.pricingOverrides ? JSON.stringify(input.pricingOverrides) : null,
-    createdAt.getTime(),
-    updatedAt.getTime(),
-  ]);
+  return insertProviderWithNextOrder({
+    ...input,
+    id: input.id ?? crypto.randomUUID(),
+    models,
+    testModel: getTestModel(models, input.testModel),
+    testProtocol: getTestProtocol(input.protocols, input.testProtocol),
+    enabled: input.enabled ?? true,
+    costMultiplier: input.costMultiplier ?? "1",
+    pricingOverrides: input.pricingOverrides ?? null,
+    createdAt,
+    updatedAt,
+  });
 };
 
 export const updateProvider = async (id: string, input: UpdateProviderInput): Promise<void> => {
@@ -215,5 +211,5 @@ export const moveProviderOrder = async (
   targetId: string,
   placement: ProviderOrderPlacement,
 ): Promise<void> => {
-  moveProviderOrderInDatabase(sqlite, sourceId, targetId, placement);
+  await moveProviderOrderInDatabase(sourceId, targetId, placement);
 };

@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, like, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { usage } from "#/lib/database/drizzle/schema";
 import type { UsageFilters, UsagePeriodFilter } from "./filters";
@@ -15,9 +15,11 @@ export const createUsageWhere = (filters: UsageFilters): SQL | undefined => {
   const client = filters.client?.trim();
 
   if (model) {
-    conditions.push(or(like(usage.model, `%${model}%`), like(usage.upstreamModel, `%${model}%`))!);
+    conditions.push(
+      or(ilike(usage.model, `%${model}%`), ilike(usage.upstreamModel, `%${model}%`))!,
+    );
   }
-  if (client) conditions.push(like(usage.client, `%${client}%`));
+  if (client) conditions.push(ilike(usage.client, `%${client}%`));
   if (filters.protocolType) conditions.push(sql`${usage.protocolType} = ${filters.protocolType}`);
   if (filters.stream !== "all") conditions.push(eq(usage.isStream, filters.stream === "stream"));
   if (filters.status === "success") {

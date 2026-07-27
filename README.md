@@ -1,7 +1,7 @@
 # oh-my-ai-gateway
 
 `oh-my-ai-gateway` is a runnable local AI API gateway. It forwards native OpenAI Chat
-Completions, OpenAI Responses, and Anthropic Messages requests to providers configured in SQLite,
+Completions, OpenAI Responses, and Anthropic Messages requests to providers configured in PostgreSQL,
 without converting protocols or rewriting model names.
 
 The included dashboard manages providers and shows request usage and estimated provider cost. The
@@ -12,7 +12,7 @@ production deployment.
 
 - Native request and response forwarding for three protocol operations, including SSE streams.
 - A protocol-shaped model list assembled from enabled, configured providers.
-- SQLite-backed provider creation, editing, deletion, enablement, protocol endpoints, models, and
+- PostgreSQL-backed provider creation, editing, deletion, enablement, protocol endpoints, models, and
   credentials.
 - Upstream model discovery, a selectable test model, and connection tests through the gateway.
 - Asynchronous usage records with response status, model, protocol, stream mode, token counts,
@@ -59,18 +59,19 @@ The request body is sent upstream in its native form.
 
 ## Getting Started
 
-Prerequisites: Bun and a supported local environment for `better-sqlite3`.
+Prerequisites: Bun, Docker, and the Supabase CLI installed by the project dependencies.
 
 ```bash
 bun install
 cp .env.example .env
 ```
 
-Edit `.env` and replace the example value with a strong, private `GATEWAY_TOKEN`. Then initialize
-the SQLite database and start the application:
+Edit `.env` and replace the example value with a strong, private `GATEWAY_TOKEN`. Then start local
+Supabase, push the Drizzle schema, and start the application:
 
 ```bash
-bun run db:migrate
+bun run db:start
+bun run db:push
 bun run dev
 ```
 
@@ -83,10 +84,12 @@ endpoint table above is the current reference for model listing.
 
 ### Environment Variables
 
-| Variable         | Purpose                                                     | Default when omitted                     |
-| ---------------- | ----------------------------------------------------------- | ---------------------------------------- |
-| `GATEWAY_TOKEN`  | Shared secret for all gateway endpoints and dashboard login | `TOKEN` (development fallback; insecure) |
-| `SQLITE_DB_PATH` | Path to the local SQLite file used for providers and usage  | `./data/gateway.sqlite`                  |
+| Variable                 | Purpose                                                                  | Default when omitted                     |
+| ------------------------ | ------------------------------------------------------------------------ | ---------------------------------------- |
+| `GATEWAY_TOKEN`          | Shared secret for all gateway endpoints and dashboard login              | `TOKEN` (development fallback; insecure) |
+| `DATABASE_URL`           | Runtime PostgreSQL connection; use the transaction pooler on Vercel      | Required                                 |
+| `DATABASE_MIGRATION_URL` | Direct or session-pooled connection for schema pushes and Drizzle Studio | `DATABASE_URL`                           |
+| `DATABASE_POOL_MAX`      | Maximum runtime connections per application instance                     | `1`                                      |
 
 ## Provider Cost Estimation
 
@@ -119,9 +122,34 @@ bun run format:check # Check formatting without changing files
 bun run typecheck    # Run TypeScript without emitting files
 bun run check        # Run lint, format:check, and typecheck
 
-bun run db:migrate   # Create/update the SQLite database from committed migrations
-bun run db:generate  # Generate a migration after an intentional schema change
-bun run db:studio    # Open Drizzle Studio for the configured SQLite database
+bun run db:start     # Start the local Supabase stack
+bun run db:stop      # Stop the local Supabase stack
+bun run db:push      # Push the current schema directly to PostgreSQL
+bun run db:studio    # Open Drizzle Studio using the migration connection
+```
+
+### Remove the Local Database
+
+The following cleanup is irreversible and deletes all local database data. Stop the Supabase stack
+and remove its data volumes first:
+
+```bash
+supabase stop --project-id oh-my-ai-gateway --no-backup --yes
+```
+
+If Docker resources remain after Supabase stops, remove the database container and the
+`supabase_db_oh-my-ai-gateway` volume explicitly:
+
+```bash
+docker rm -f supabase_db_oh-my-ai-gateway 2>/dev/null || true
+docker volume rm supabase_db_oh-my-ai-gateway 2>/dev/null || true
+```
+
+Verify that the database container and persistent volume are gone:
+
+```bash
+docker ps -a --filter name=supabase_db_oh-my-ai-gateway
+docker volume ls --filter name=supabase_db_oh-my-ai-gateway
 ```
 
 ## Limitations and Security
@@ -131,7 +159,7 @@ key hashing, rotation, revocation, per-consumer routes, quotas, rate limiting, a
 failover, or authoritative billing ledger. The fallback gateway token is predictable when
 `GATEWAY_TOKEN` is unset.
 
-Provider API tokens are stored in plaintext in the local SQLite database. Protect the database,
+Provider API tokens are stored in plaintext in the private `gateway` PostgreSQL schema. Protect the database,
 `.env`, logs, host, and backups accordingly. There is no dedicated secret-management boundary or
 production backup and recovery procedure. Do not expose this application directly to untrusted
 clients or treat its cost estimates as chargeable financial facts in its current form.
@@ -140,7 +168,7 @@ clients or treat its cost estimates as chargeable financial facts in its current
 
 - Next.js App Router and React
 - TypeScript with strict type checking
-- SQLite, Drizzle ORM, and `better-sqlite3`
+- Supabase PostgreSQL, Drizzle ORM, and `postgres`
 - Tailwind CSS
 - Bun
 - Oxlint and Oxfmt

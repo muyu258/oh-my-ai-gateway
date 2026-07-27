@@ -8,7 +8,7 @@ lifecycle records, an immutable billing ledger, rebuildable analytics projection
 hardening are future work tracked in [the phased implementation plan](./plan.md).
 
 The deployed unit is a Next.js application containing both the gateway data plane and its local
-control-plane dashboard. SQLite stores provider configuration and observed usage. The gateway
+control-plane dashboard. Supabase PostgreSQL stores provider configuration and observed usage. The gateway
 supports native forwarding for three protocol operations and intentionally performs no protocol
 conversion or model alias substitution.
 
@@ -34,7 +34,7 @@ Protocol adapter -> upstream fetch
                     asynchronous usage tracker
                              |
                              v
-                     SQLite usage table
+                  PostgreSQL usage table
                              |
                              v
                     dashboard queries
@@ -104,7 +104,7 @@ For a generation request, routing proceeds as follows:
 
 1. The adapter authenticates the protocol-specific header against the shared token.
 2. It reads the `model` field from the native JSON request.
-3. The provider repository returns its cached rows, loaded from SQLite in ascending provider
+3. The provider repository returns its cached rows, loaded from PostgreSQL in ascending provider
    `order`.
 4. The handler filters for provider enabled, exact protocol enabled, and exact model membership.
 5. If `x-provider-id` is supplied, it selects that exact UUID among the filtered candidates.
@@ -137,8 +137,9 @@ time-period filters. Its periods are `24h`, `7d`, `30d`, and all time.
 
 ## 6. Persistence Boundary
 
-SQLite is accessed through Drizzle ORM. `SQLITE_DB_PATH` selects the database file and defaults to
-`./data/gateway.sqlite`. The implementation has two current domain tables.
+PostgreSQL is accessed through Drizzle ORM and `postgres-js`. `DATABASE_URL` is required at runtime;
+`DATABASE_MIGRATION_URL` can select a direct or session-pooled migration connection. The two domain
+tables live in the private `gateway` schema, which is excluded from the local Supabase Data API.
 
 ### 6.1 `provider`
 
@@ -155,8 +156,8 @@ The `provider` table stores:
 
 The provider UUID is the primary key and the editable provider name remains unique. Provider
 records use Next.js Cache Components with the `providers` tag; dashboard Server Actions invalidate
-that tag after successful mutations. This design assumes a local/single-process operating model and
-has no shared cache handler or cross-process invalidation.
+that tag after successful mutations. Creation and priority moves use PostgreSQL transactions and a
+transaction-scoped advisory lock to serialize order allocation across application instances.
 
 ### 6.2 `usage`
 
@@ -234,7 +235,7 @@ The current trust boundary is suitable for a local gateway used by trusted calle
 
 - one shared gateway token authenticates every API caller and dashboard operator;
 - the development fallback token is predictable if configuration is missing;
-- provider tokens are stored in plaintext in SQLite;
+- provider tokens are stored in plaintext in the private PostgreSQL schema;
 - no consumer isolation, hashed API keys, rotation, revocation, RBAC, audit trail, quota, or rate
   limit exists;
 - request headers do not use a comprehensive allowlist and ordinary upstream requests have no

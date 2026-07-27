@@ -1,1 +1,0 @@
-ALTER TABLE `provider` ADD `protocol_endpoints` text DEFAULT '{}' NOT NULL;

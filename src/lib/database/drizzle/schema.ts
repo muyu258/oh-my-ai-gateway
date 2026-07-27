@@ -1,5 +1,14 @@
-import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgSchema,
+  text,
+  timestamp,
+  uuid,
+  unique,
+} from "drizzle-orm/pg-core";
 
 import { ProtocolType } from "#/lib/protocol/protocol.types";
 import type { CostSnapshot, CostStatus } from "#/lib/pricing/calculate-cost";
@@ -8,71 +17,77 @@ import type { ProviderModels } from "#/lib/provider/provider-models";
 
 export type PricingSource = "provider_override" | "global_catalog" | "global_fallback";
 
-export const provider = sqliteTable("provider", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull().unique(),
-  order: integer("order").notNull().unique(),
-  models: text("models", { mode: "json" }).$type<ProviderModels>().notNull(),
-  testModel: text("test_model"),
-  testProtocol: text("test_protocol").$type<ProtocolType>(),
-  protocols: text("protocols", { mode: "json" })
-    .$type<
-      Partial<
-        Record<
-          ProtocolType,
-          {
-            endpoint: string;
-            enabled: boolean;
-          }
+export const gateway = pgSchema("gateway");
+
+export const provider = gateway.table(
+  "provider",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    order: integer("order").notNull(),
+    models: jsonb("models").$type<ProviderModels>().notNull(),
+    testModel: text("test_model"),
+    testProtocol: text("test_protocol").$type<ProtocolType>(),
+    protocols: jsonb("protocols")
+      .$type<
+        Partial<
+          Record<
+            ProtocolType,
+            {
+              endpoint: string;
+              enabled: boolean;
+            }
+          >
         >
-      >
-    >()
-    .notNull(),
-  websiteUrl: text("website_url"),
-  baseUrl: text("base_url"),
-  token: text("token").notNull(),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  costMultiplier: text("cost_multiplier").notNull().default("1"),
-  pricingOverrides: text("pricing_overrides", { mode: "json" }).$type<PricingOverrides>(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-});
+      >()
+      .notNull(),
+    websiteUrl: text("website_url"),
+    baseUrl: text("base_url"),
+    token: text("token").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    costMultiplier: text("cost_multiplier").notNull().default("1"),
+    pricingOverrides: jsonb("pricing_overrides").$type<PricingOverrides>(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("provider_name_unique").on(table.name),
+    unique("provider_order_unique").on(table.order),
+  ],
+);
 
 export type ProviderRecord = typeof provider.$inferSelect;
 export type NewProviderRecord = typeof provider.$inferInsert;
 
-export const usage = sqliteTable("usage", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  providerId: text("provider_id").references(() => provider.id, { onDelete: "set null" }),
-  model: text("model"),
-  upstreamModel: text("upstream_model"),
-  pricingSource: text("pricing_source").$type<PricingSource>(),
-  client: text("client"),
-  protocolType: text("protocol_type"),
-  status: integer("status"),
-  isStream: integer("is_stream", { mode: "boolean" }).notNull().default(false),
-  error: text("error", { mode: "json" }).$type<unknown>(),
-  inputTokens: integer("input_tokens"),
-  outputTokens: integer("output_tokens"),
-  cacheCreationInputTokens: integer("cache_creation_input_tokens"),
-  cacheReadInputTokens: integer("cache_read_input_tokens"),
-  costMicros: integer("cost_micros"),
-  costStatus: text("cost_status").$type<CostStatus>(),
-  costSnapshot: text("cost_snapshot", { mode: "json" }).$type<CostSnapshot>(),
-  startAt: integer("start_at", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  timeToFirstByteMs: integer("time_to_first_byte_ms"),
-  endAt: integer("end_at", { mode: "timestamp_ms" }),
-});
+export const usage = gateway.table(
+  "usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerId: uuid("provider_id").references(() => provider.id, { onDelete: "set null" }),
+    model: text("model"),
+    upstreamModel: text("upstream_model"),
+    pricingSource: text("pricing_source").$type<PricingSource>(),
+    client: text("client"),
+    protocolType: text("protocol_type"),
+    status: integer("status"),
+    isStream: boolean("is_stream").notNull().default(false),
+    error: jsonb("error").$type<unknown>(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    cacheCreationInputTokens: integer("cache_creation_input_tokens"),
+    cacheReadInputTokens: integer("cache_read_input_tokens"),
+    costMicros: integer("cost_micros"),
+    costStatus: text("cost_status").$type<CostStatus>(),
+    costSnapshot: jsonb("cost_snapshot").$type<CostSnapshot>(),
+    startAt: timestamp("start_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    timeToFirstByteMs: integer("time_to_first_byte_ms"),
+    endAt: timestamp("end_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    index("usage_start_at_idx").on(table.startAt),
+    index("usage_provider_id_start_at_idx").on(table.providerId, table.startAt),
+  ],
+);
 
 export type Usage = typeof usage.$inferSelect;
 export type NewUsage = typeof usage.$inferInsert;
