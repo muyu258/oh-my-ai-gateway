@@ -1,10 +1,11 @@
 import { defineConfig } from "drizzle-kit";
-import { databaseMigrationUrl, drizzleSchemaPath } from "./src/lib/database/config";
+import { databaseUrl, drizzleSchemaPath } from "./src/lib/database/config";
 
 export default defineConfig({
   dialect: "postgresql",
   schema: drizzleSchemaPath,
+  schemaFilter: ["gateway"],
   dbCredentials: {
-    url: databaseMigrationUrl,
+    url: databaseUrl,
   },
 });

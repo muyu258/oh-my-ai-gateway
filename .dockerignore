@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+coverage
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+Dockerfile*
+compose.y*ml
+README.md
+docs

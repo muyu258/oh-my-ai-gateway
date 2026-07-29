@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bun scripts/dev.ts",
     "build": "next build",
     "start": "next start",
     "test": "bun test",
@@ -12,10 +12,7 @@
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",
     "check": "bun run lint && bun run format:check && bun run typecheck",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop"
+    "db:reset": "bun scripts/db-reset-configured.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -38,6 +35,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bun": "1.3.14",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -45,7 +43,6 @@
     "oxfmt": "0.59.0",
     "oxlint": "1.74.0",
     "oxlint-tsgolint": "0.25.0",
-    "supabase": "2.72.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

@@ -2,15 +2,16 @@
 
 ## 1. Scope and Status
 
-This document describes the implementation present in the repository as of **2026-07-26**. It is
+This document describes the implementation present in the repository as of **2026-07-27**. It is
 an as-built reference, not a target design. Consumer-specific keys and routes, request/attempt
 lifecycle records, an immutable billing ledger, rebuildable analytics projections, and production
 hardening are future work tracked in [the phased implementation plan](./plan.md).
 
 The deployed unit is a Next.js application containing both the gateway data plane and its local
-control-plane dashboard. Supabase PostgreSQL stores provider configuration and observed usage. The gateway
+control-plane dashboard. PostgreSQL stores provider configuration and observed usage. The gateway
 supports native forwarding for three protocol operations and intentionally performs no protocol
-conversion or model alias substitution.
+conversion or model alias substitution. Docker Compose can run PostgreSQL 17 and the
+production-mode application as a complete local stack; schema changes are always explicit.
 
 ## 2. Runtime Components
 
@@ -137,9 +138,14 @@ time-period filters. Its periods are `24h`, `7d`, `30d`, and all time.
 
 ## 6. Persistence Boundary
 
-PostgreSQL is accessed through Drizzle ORM and `postgres-js`. `DATABASE_URL` is required at runtime;
-`DATABASE_MIGRATION_URL` can select a direct or session-pooled migration connection. The two domain
-tables live in the private `gateway` schema, which is excluded from the local Supabase Data API.
+PostgreSQL is accessed through Drizzle ORM and `postgres-js`. `DATABASE_URL` is required and is used
+by both the application and Drizzle tooling. The two domain tables live in the `gateway` schema.
+Host development connects to the published PostgreSQL port; Compose services use the internal `db`
+hostname. Schema management uses `drizzle-kit push` rather than versioned migrations.
+Compose lifecycle commands do not apply schema changes. Both initialization and later schema pushes
+target `DATABASE_URL`; `bun run db:reset` immediately drops and recreates the `gateway` schema in a
+transaction before rebuilding it with Drizzle. The reset leaves other schemas intact, although
+`CASCADE` can remove objects elsewhere that depend on `gateway` objects.
 
 ### 6.1 `provider`
 

@@ -44,8 +44,10 @@ export const anthropicAdapter: ProtocolAdapter = {
     return payload["model"];
   },
   getToken: ({ headers }) => {
-    const token = headers.get("x-api-key");
-    invariant(token, new Error("Anthropic gateway token is required"));
+    const x_api_key = headers.get("x-api-key");
+    const authorization = headers.get("authorization");
+    invariant(x_api_key || authorization, new Error("Anthropic gateway token is required"));
+    const token = x_api_key ?? authorization!.replace(/^Bearer\s+/i, "");
     return token;
   },
   transformer: async ({ request, options }) => {
@@ -57,6 +59,7 @@ export const anthropicAdapter: ProtocolAdapter = {
     );
     return withHeaders(upstreamRequest, {
       "x-api-key": token,
+      authorization: `Bearer ${token}`,
     });
   },
 
