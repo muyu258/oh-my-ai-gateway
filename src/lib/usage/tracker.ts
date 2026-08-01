@@ -2,6 +2,7 @@ import { after } from "next/server";
 
 import type { NewUsage } from "#/lib/database/drizzle/schema";
 import { saveUsage } from "#/lib/database/usage.repository";
+import { getPricingCatalog } from "#/lib/pricing/catalog";
 import { calculateCost } from "#/lib/pricing/calculate-cost";
 import { emptyUsage } from "../protocol/adapter/adapter.helpers";
 import type { ParsedUsage, ProtocolAdapter } from "../protocol/adapter/adapter.types";
@@ -51,7 +52,8 @@ const processUsageTracking = async (
 
   let cost: Pick<NewUsage, "costMicros" | "costStatus" | "costSnapshot" | "pricingSource">;
   try {
-    cost = calculateCost(upstreamModel, provider, usage);
+    const catalog = await getPricingCatalog();
+    cost = calculateCost(upstreamModel, provider, usage, catalog);
   } catch (costError) {
     console.error(`Failed to calculate usage cost for provider '${provider.name}'`, costError);
     cost = {

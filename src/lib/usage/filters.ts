@@ -4,6 +4,8 @@ export const usageStreamFilters = ["all", "stream", "nonStream"] as const;
 export const usagePricingSourceFilters = [
   "all",
   "provider_override",
+  "models_dev_snapshot",
+  "models_dev_fallback",
   "global_catalog",
   "global_fallback",
   "unknown",

@@ -28,6 +28,9 @@ describe("usage filters", () => {
     expect(provider.sql).toContain('"gateway"."usage"."pricing_source" = $1');
     expect(provider.params).toEqual(["provider_override"]);
 
+    const fallback = compile({ ...baseFilters, pricingSource: "models_dev_fallback" });
+    expect(fallback.params).toEqual(["models_dev_fallback"]);
+
     const legacy = compile({ ...baseFilters, pricingSource: "unknown" });
     expect(legacy.sql).toContain('"gateway"."usage"."pricing_source" is null');
     expect(legacy.params).toEqual([]);

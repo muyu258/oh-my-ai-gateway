@@ -17,8 +17,8 @@ production deployment.
 - Upstream model discovery, a selectable test model, and connection tests through the gateway.
 - Asynchronous usage records with response status, model, protocol, stream mode, token counts,
   time to first byte, upstream errors, and timestamps.
-- Provider cost estimates using repository rates, provider multipliers, model-specific overrides,
-  fallback pricing, and per-request rate snapshots.
+- Provider cost estimates using a cached PostgreSQL models.dev snapshot, provider multipliers,
+  model-specific overrides, a catalog fallback, and per-request rate snapshots.
 - Provider summaries and a filterable usage dashboard.
 
 See [the as-built architecture](docs/architecture.md) for implementation details and
@@ -72,7 +72,7 @@ server:
 
 ```bash
 docker compose up -d --wait db
-bun x drizzle-kit push
+bun run db:init
 bun run dev
 ```
 
@@ -83,7 +83,9 @@ to access `/dashboard`. Provider configuration is available at `/dashboard/provi
 The built-in API reference currently documents the generation endpoints but not `/v1/models`; the
 endpoint table above is the current reference for model listing. Database lifecycle and schema
 commands are separate: `docker compose up -d --wait db` only starts the local database, while
-`bun x drizzle-kit push` applies the schema to `DATABASE_URL`.
+`bun run db:init` pushes the schema and idempotently imports the frozen pricing catalog into
+`DATABASE_URL`. A missing or invalid catalog only marks asynchronous cost tracking as errored; it
+does not prevent gateway forwarding.
 
 ### Full Docker Stack
 
@@ -91,7 +93,7 @@ To build and run PostgreSQL and the production-mode application:
 
 ```bash
 docker compose up -d --wait db
-bun x drizzle-kit push
+bun run db:init
 docker compose up --build -d --wait
 ```
 
@@ -114,7 +116,7 @@ Compose supplies the internal database URL to its containers using the `db` host
 `APP_PORT` controls both `bun run dev` and the published Docker port. The Docker application still
 listens on port `3000` inside its container.
 
-For a cloud database, set `DATABASE_URL` to that database before running
+For a cloud database, set `DATABASE_URL` to that database before running `bun run db:init`,
 `bun x drizzle-kit push`, `bun x drizzle-kit studio`, or `bun run db:reset`. Supabase
 transaction-pooler URLs on port `6543` are used directly; there is no separate migration URL. Never
 commit database credentials. If a database password has been exposed, rotate it before using the
@@ -124,15 +126,23 @@ URL.
 
 Cost values are provider cost estimates, not consumer bills or ledger entries. Catalog and override
 rates are denominated in USD per 1,000,000 tokens. Each provider can apply a decimal multiplier and
-model-specific rate overrides. When neither an override nor an exact catalog model exists, the
-catalog's fallback model supplies the rates.
+model-specific rate overrides. During asynchronous usage tracking, overrides take precedence;
+otherwise case-sensitive catalog matching selects the longest unique model ID contained in the
+upstream model name. Ambiguous and absent matches use the fixed `gpt-5.6-sol` fallback. Aliases reuse
+their real upstream model's schedule.
+
+The checked-in `catalog.json` file is a frozen model-to-pricing mapping. `bun run db:init` validates
+and upserts it as the `pricing` entry in `gateway.key_value`; usage tracking reads that mapping
+through the long-lived `pricing` cache tag. Refreshing the catalog is a manual repository change.
+Restart the application after reseeding unless the cache tag is explicitly invalidated.
 
 The gateway calculates integer microdollars from the token components it can parse and stores the
 selected rates and multiplier with the usage record. The completeness state is:
 
 - `complete`: all input, output, cache-read, and cache-write token components are known;
 - `partial`: at least one, but not all, token components are known;
-- `unavailable`: no token component is known; or
+- `unavailable`: no token component is known;
+- `unpriced`: the supplied upstream model is not present in the configured provider; or
 - `error`: cost calculation failed.
 
 Changing provider pricing later does not rewrite existing usage snapshots. These snapshots improve
@@ -150,11 +160,12 @@ bun run format       # Format supported project files
 bun run format:check # Check formatting without changing files
 bun run typecheck    # Run TypeScript without emitting files
 bun run check        # Run lint, format:check, and typecheck
-bun run db:reset     # Reset gateway in DATABASE_URL, then recreate it with Drizzle
+bun run db:init      # Push the schema and idempotently seed pricing
+bun run db:reset     # Reset gateway, then run the same initialization
 
 docker compose up -d --wait db      # Start and wait for PostgreSQL only
 docker compose stop db              # Stop PostgreSQL without deleting its data
-bun x drizzle-kit push              # Push the current schema to DATABASE_URL
+bun x drizzle-kit push              # Push schema only; does not seed pricing
 bun x drizzle-kit studio            # Open Drizzle Studio using DATABASE_URL
 docker compose up --build -d --wait # Build and start the complete production-mode stack
 docker compose down                 # Stop the complete stack without deleting database data
@@ -169,10 +180,10 @@ gateway provider and usage data immediately:
 bun run db:reset
 ```
 
-The command then runs `drizzle-kit push` to rebuild the schema. Other schemas remain intact, but
-PostgreSQL objects in those schemas that depend on `gateway` objects may also be removed by
-`CASCADE`. Verify `DATABASE_URL` carefully before running it, especially when it points to a cloud
-database.
+The command then performs the same schema push and pricing seed as `bun run db:init`. Other schemas
+remain intact, but PostgreSQL objects in those schemas that depend on `gateway` objects may also be
+removed by `CASCADE`. Verify `DATABASE_URL` carefully before running it, especially when it points
+to a cloud database.
 
 ## Limitations and Security
 

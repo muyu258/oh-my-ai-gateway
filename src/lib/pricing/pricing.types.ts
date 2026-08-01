@@ -16,12 +16,12 @@ export const multiplierSchema = z
   )
   .refine((value) => Number(value) <= 100, "Cost multiplier must not exceed 100.");
 
-const ratesSchema = z
+export const ratesSchema = z
   .object({
     input: priceDecimalSchema,
     output: priceDecimalSchema,
-    cacheRead: priceDecimalSchema,
-    cacheWrite: priceDecimalSchema,
+    cacheRead: priceDecimalSchema.nullable().default(null),
+    cacheWrite: priceDecimalSchema.nullable().default(null),
   })
   .strict();
 
@@ -52,26 +52,21 @@ export const modelPricingSchema = z
 
 export const pricingOverridesSchema = z.record(z.string().min(1), modelPricingSchema);
 
+export const PRICING_FALLBACK_MODEL = "gpt-5.6-sol";
+
 export const pricingCatalogSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    catalogVersion: z.string().min(1),
-    currency: z.literal("USD"),
-    unitTokens: z.literal(1_000_000),
-    fallbackModel: z.string().min(1),
-    models: z.record(z.string().min(1), modelPricingSchema),
-  })
-  .strict()
-  .superRefine(({ fallbackModel, models }, context) => {
-    if (!models[fallbackModel]) {
+  .record(z.string().min(1), modelPricingSchema)
+  .superRefine((catalog, context) => {
+    if (!Object.hasOwn(catalog, PRICING_FALLBACK_MODEL)) {
       context.addIssue({
         code: "custom",
-        path: ["fallbackModel"],
-        message: "Fallback model must exist in the pricing catalog.",
+        path: [PRICING_FALLBACK_MODEL],
+        message: "Pricing fallback model must identify an existing catalog entry.",
       });
     }
   });
 
 export type Rates = z.infer<typeof ratesSchema>;
 export type ModelPricing = z.infer<typeof modelPricingSchema>;
+export type PricingCatalog = z.infer<typeof pricingCatalogSchema>;
 export type PricingOverrides = z.infer<typeof pricingOverridesSchema>;

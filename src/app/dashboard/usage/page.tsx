@@ -298,8 +298,10 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
                     options={[
                       { label: "All pricing sources", value: "all" },
                       { label: "Provider override", value: "provider_override" },
-                      { label: "Global catalog", value: "global_catalog" },
-                      { label: "Global fallback", value: "global_fallback" },
+                      { label: "Models.dev", value: "models_dev_snapshot" },
+                      { label: "Models.dev fallback", value: "models_dev_fallback" },
+                      { label: "Global catalog (legacy)", value: "global_catalog" },
+                      { label: "Global fallback (legacy)", value: "global_fallback" },
                       { label: "Unknown / legacy", value: "unknown" },
                     ]}
                   />
@@ -439,15 +441,20 @@ async function UsageContent({ searchParams }: { searchParams: Promise<SearchPara
                       </DataTableCell>
                       <DataTableCell className="whitespace-nowrap">
                         <div className="font-mono text-xs font-medium tabular-nums text-[#344054]">
-                          {record.costMicros !== null &&
-                          (record.costStatus === "complete" || record.costStatus === "partial")
-                            ? formatCost(record.costMicros)
-                            : "—"}
+                          {record.costStatus === "unpriced"
+                            ? "Unpriced"
+                            : record.costMicros !== null &&
+                                (record.costStatus === "complete" ||
+                                  record.costStatus === "partial")
+                              ? formatCost(record.costMicros)
+                              : "—"}
                           {record.pricingSource ? (
                             <p className="mt-1 font-sans text-[11px] font-medium text-[#667085]">
                               {
                                 {
                                   provider_override: "Provider",
+                                  models_dev_snapshot: "Models.dev",
+                                  models_dev_fallback: "Models.dev fallback",
                                   global_catalog: "Global",
                                   global_fallback: "Fallback",
                                 }[record.pricingSource]

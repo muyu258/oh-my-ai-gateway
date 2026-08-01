@@ -1,4 +1,6 @@
 import postgres from "postgres";
+import { closeDatabase } from "../src/lib/database/drizzle/client";
+import { initializeDatabase } from "./db-init";
 
 async function resetGatewaySchema(databaseUrl: string): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1, prepare: false });
@@ -13,18 +15,6 @@ async function resetGatewaySchema(databaseUrl: string): Promise<void> {
   }
 }
 
-async function initializeDatabase(): Promise<void> {
-  const childProcess = Bun.spawn(["bun", "x", "drizzle-kit", "push"], {
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
-    env: globalThis.process.env,
-  });
-  const exitCode = await childProcess.exited;
-
-  if (exitCode !== 0) throw new Error(`drizzle-kit push failed with exit code ${exitCode}.`);
-}
-
 if (import.meta.main) {
   try {
     const databaseUrl = process.env.DATABASE_URL;
@@ -33,6 +23,8 @@ if (import.meta.main) {
     await initializeDatabase();
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await closeDatabase();
   }
 }

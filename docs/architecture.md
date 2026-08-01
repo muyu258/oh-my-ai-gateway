@@ -139,15 +139,23 @@ time-period filters. Its periods are `24h`, `7d`, `30d`, and all time.
 ## 6. Persistence Boundary
 
 PostgreSQL is accessed through Drizzle ORM and `postgres-js`. `DATABASE_URL` is required and is used
-by both the application and Drizzle tooling. The two domain tables live in the `gateway` schema.
+by both the application and Drizzle tooling. The three domain tables live in the `gateway` schema.
 Host development connects to the published PostgreSQL port; Compose services use the internal `db`
-hostname. Schema management uses `drizzle-kit push` rather than versioned migrations.
-Compose lifecycle commands do not apply schema changes. Both initialization and later schema pushes
-target `DATABASE_URL`; `bun run db:reset` immediately drops and recreates the `gateway` schema in a
-transaction before rebuilding it with Drizzle. The reset leaves other schemas intact, although
-`CASCADE` can remove objects elsewhere that depend on `gateway` objects.
+hostname. Schema management uses `drizzle-kit push` rather than versioned migrations, but a schema
+push does not seed data. `bun run db:init` pushes the schema and idempotently imports the frozen
+pricing seed in a transaction. Compose lifecycle commands do neither. `bun run db:reset` immediately
+drops and recreates the `gateway` schema in a transaction before running the same initialization.
+The reset leaves other schemas intact, although `CASCADE` can remove objects elsewhere that depend
+on `gateway` objects.
 
-### 6.1 `provider`
+### 6.1 `key_value`
+
+The key-value table stores a text primary key, required JSONB value, and update timestamp. It is
+currently used for one dedicated `pricing` record whose value is a plain model-to-pricing mapping.
+Database initialization and runtime reads validate the mapping, including the required fixed
+`gpt-5.6-sol` fallback entry.
+
+### 6.2 `provider`
 
 The `provider` table stores:
 
@@ -164,8 +172,10 @@ The provider UUID is the primary key and the editable provider name remains uniq
 records use Next.js Cache Components with the `providers` tag; dashboard Server Actions invalidate
 that tag after successful mutations. Creation and priority moves use PostgreSQL transactions and a
 transaction-scoped advisory lock to serialize order allocation across application instances.
+Cached provider records retain only persisted model aliases and configuration. Provider routing and
+configuration never load or attach runtime pricing data.
 
-### 6.2 `usage`
+### 6.3 `usage`
 
 The `usage` table stores one row for each successfully initiated request that receives an upstream
 response and reaches tracking. It contains:
@@ -207,23 +217,38 @@ directly. Missing usage remains `null`; it is not treated as zero when deciding 
 
 ### 7.1 Pricing
 
-The repository pricing catalog declares USD rates per 1,000,000 tokens. Resolution order is:
+The frozen repository pricing catalog is imported into PostgreSQL by `bun run db:init`. At runtime,
+asynchronous usage tracking reads the validated model mapping through Next.js Cache Components with
+`cacheLife("max")` and the `pricing` cache tag; it does not import the seed JSON. The catalog
+declares USD rates per 1,000,000 tokens. Resolution order is:
 
-1. a provider's override for the exact model;
-2. the repository catalog entry for the exact model; or
-3. the catalog's configured fallback model.
+1. the longest unique provider override ID contained in the priced model name; or
+2. the longest unique models.dev catalog ID contained in the priced model name; or
+3. the fixed `gpt-5.6-sol` catalog fallback.
+
+Matching is case-sensitive. Ambiguous equal-length matches and absent matches use the fallback.
+Aliases remain names on their real model and do not duplicate schedules. Provider rows retain their
+multiplier and overrides and are unchanged by pricing reads.
 
 Applicable tier rates are selected when all input components are known. The provider multiplier is
 then applied. Calculation uses scaled integers and rounds the final result to the nearest integer
-microdollar. The stored snapshot contains the exact rates and multiplier selected for that request.
+microdollar. The stored snapshot contains only the matched bare model ID, exact rates, and multiplier
+selected for that request.
 
 Cost status is `complete` when all four components are known, `partial` when some are known,
-`unavailable` when none are known, and `error` when calculation itself fails. Provider statistics
+`unavailable` when none are known, `unpriced` when an invalid upstream model is supplied, and
+`error` when calculation itself fails. Provider statistics
 sum available cost values and separately flag whether every included usage row is complete.
 
 Historical snapshots are stable when catalog, override, or multiplier configuration changes. They
 are provider cost estimates only. They do not establish a consumer price, billing obligation,
 immutable accounting fact, or idempotent ledger entry.
+
+Reseeding does not currently invalidate the long-lived cache. A running process must be restarted
+or the `pricing` tag explicitly invalidated after a seed change.
+
+Catalog reads, validation, and cost calculation run after the client response lifecycle. Failures
+store `costStatus = 'error'`, no pricing source, and no cost values without blocking forwarding.
 
 ## 8. Analytics and Operations
 

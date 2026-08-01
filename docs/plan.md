@@ -48,8 +48,8 @@ usage in the dashboard.
 - Next.js Route Handlers expose Chat Completions, Responses, Messages, and model listing.
 - Built-in adapters preserve each native payload and support JSON and SSE usage parsing.
 - Protocol-specific gateway and provider authentication headers are applied.
-- PostgreSQL schema management, provider CRUD, enablement, protocol configuration, model discovery, connection
-  testing, and usage views are present.
+- PostgreSQL schema management and explicit pricing seeding, provider CRUD, enablement, protocol
+  configuration, model discovery, connection testing, and usage views are present.
 - Provider selection filters enabled records by exact protocol and model, with an optional
   `x-provider-id` constraint.
 - Unit tests cover pricing validation and cost calculation, adapter parsing and header rewriting,
@@ -161,8 +161,9 @@ lifecycle, normalized usage provenance, and an explainable provider cost outcome
 - Successful upstream starts that receive a response produce asynchronous PostgreSQL usage rows.
 - JSON and SSE parsers normalize input, output, cache-read, and cache-creation token components.
 - Missing usage is represented explicitly and yields `partial` or `unavailable` cost states.
-- Model overrides, catalog fallback pricing, provider multipliers, integer microdollar calculations,
-  and per-request rate snapshots exist.
+- Asynchronous usage tracking combines overrides, cached PostgreSQL models.dev pricing, and the fixed
+  catalog fallback. Provider multipliers, integer microdollar calculations, and per-request rate
+  snapshots exist.
 - Historical usage snapshots are not recalculated when current pricing changes.
 
 ### Remaining Work
@@ -173,8 +174,8 @@ lifecycle, normalized usage provenance, and an explainable provider cost outcome
 - Define idempotency keys and transaction/outbox behavior for finalization and retries.
 - Record usage source (`provider`, `estimated`, or other explicit provenance), raw protocol fields
   needed for audit, and parser/schema version.
-- Version the pricing catalog and calculation algorithm in each cost result, not only selected rates
-  and multiplier.
+- Define whether a future audit record needs catalog and calculation algorithm versions in addition to
+  the selected model, rates, and multiplier.
 - Define reconciliation for missing, partial, contradictory, late, and parse-failed usage.
 - Decide retention and redaction rules for errors and provider payload fragments.
 
@@ -186,8 +187,8 @@ lifecycle, normalized usage provenance, and an explainable provider cost outcome
       facts.
 - [ ] Usage records identify their source, protocol parser version, and upstream attempt.
 - [ ] Missing, partial, late, and parse-failed usage remain distinct and reconcilable.
-- [ ] Provider cost records identify catalog version, algorithm version, exact rates, multiplier,
-      currency, units, and rounding rule.
+- [ ] Future audit records identify any required catalog or algorithm version alongside exact rates,
+      multiplier, currency, units, and rounding rule.
 - [ ] Provider cost finalization never delays or changes native response delivery.
 
 ## 6. Phase 5: Immutable Consumer Billing Ledger
@@ -309,7 +310,8 @@ capacity, observability, backup, and recovery guarantees.
 The following constraints apply to all future phases:
 
 1. Native protocol identity is preserved unless a separately designed conversion product is added.
-2. Model substitution is explicit configuration, never an implicit fallback.
+2. Routed model substitution is explicit configuration; pricing fallback never changes the routed
+   upstream model.
 3. Missing usage is not zero usage.
 4. Client response delivery does not wait for analytics or consumer billing.
 5. Provider cost and consumer billing remain separate concepts and records.

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
+import type { ProviderRecord } from "#/lib/database/drizzle/schema";
 import { ProtocolType } from "../../protocol/protocol.types";
 import { discoverProviderModels, testProviderProtocol } from "../provider-discovery";
-import type { Provider } from "../provider.types";
 
 const originalFetch = globalThis.fetch;
 
-const provider: Provider = {
+const provider: ProviderRecord = {
   id: "00000000-0000-4000-8000-000000000001",
   name: "Test provider",
   order: 1,

@@ -6,3 +6,5 @@ import * as schema from "./schema";
 const client = postgres(databaseUrl, { max: databasePoolMax, prepare: false });
 
 export const db = drizzle(client, { schema });
+
+export const closeDatabase = async (): Promise<void> => client.end();

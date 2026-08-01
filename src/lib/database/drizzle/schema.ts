@@ -15,9 +15,20 @@ import type { CostSnapshot, CostStatus } from "#/lib/pricing/calculate-cost";
 import type { PricingOverrides } from "#/lib/pricing/pricing.types";
 import type { ProviderModels } from "#/lib/provider/provider-models";
 
-export type PricingSource = "provider_override" | "global_catalog" | "global_fallback";
+export type PricingSource =
+  | "provider_override"
+  | "models_dev_snapshot"
+  | "models_dev_fallback"
+  | "global_catalog"
+  | "global_fallback";
 
 export const gateway = pgSchema("gateway");
+
+export const keyValue = gateway.table("key_value", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});
 
 export const provider = gateway.table(
   "provider",

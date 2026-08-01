@@ -1,16 +1,16 @@
 import { z } from "zod";
 
+import type { ProviderRecord } from "#/lib/database/drizzle/schema";
 import { adapters } from "../protocol/adapter";
 import { appendEndpoint } from "../protocol/adapter/adapter.helpers";
 import { ProtocolType } from "../protocol/protocol.types";
-import type { Provider } from "./provider.types";
 import { getRealModels, resolveProviderModel } from "./provider-models";
 
 const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string().min(1) })),
 });
 
-const discoveryHeaders = (provider: Provider, protocol: ProtocolType): Headers => {
+const discoveryHeaders = (provider: ProviderRecord, protocol: ProtocolType): Headers => {
   const headers = new Headers({ accept: "application/json" });
 
   if (protocol === ProtocolType.Anthropic) {
@@ -50,7 +50,7 @@ const testPayload = (protocol: ProtocolType, model: string): Record<string, unkn
 };
 
 export const testProviderProtocol = async (
-  provider: Provider,
+  provider: ProviderRecord,
   protocol: ProtocolType,
   gateway: { baseUrl: string; token: string },
   requestedModel?: string,
@@ -96,7 +96,7 @@ export const testProviderProtocol = async (
 };
 
 export const discoverProviderModels = async (
-  provider: Provider,
+  provider: ProviderRecord,
   protocol: ProtocolType,
 ): Promise<{ latencyMs: number; models: string[] }> => {
   if (!provider.protocols[protocol]?.enabled)
